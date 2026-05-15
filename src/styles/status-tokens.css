@@ -1,0 +1,777 @@
+/**
+ * Project management — semantic status tokens (Precision Utilitarian).
+ * Consumed by project + task badge maps and optional accent/progress utilities.
+ * Single source of truth for lifecycle, workflow, priority, and type chroma.
+ */
+
+:root {
+  /* ── Shared chroma anchors (oklch, readable in light UI) ─────────────── */
+
+  /* Project lifecycle */
+  --pm-project-pending-bg: oklch(0.94 0.008 285);
+  --pm-project-pending-fg: oklch(0.45 0.04 285);
+  --pm-project-pending-border: oklch(0.88 0.012 280);
+  --pm-project-pending-accent: oklch(0.55 0.02 285);
+
+  --pm-project-running-bg: oklch(0.51 0.18 275 / 0.1);
+  --pm-project-running-fg: oklch(0.48 0.18 275);
+  --pm-project-running-border: oklch(0.51 0.18 275 / 0.22);
+  --pm-project-running-accent: oklch(0.51 0.18 275);
+
+  --pm-project-completed-bg: oklch(0.55 0.14 155 / 0.12);
+  --pm-project-completed-fg: oklch(0.45 0.14 155);
+  --pm-project-completed-border: oklch(0.55 0.14 155 / 0.22);
+  --pm-project-completed-accent: oklch(0.55 0.14 155);
+
+  --pm-project-stopped-bg: oklch(0.62 0.2 25 / 0.1);
+  --pm-project-stopped-fg: oklch(0.55 0.2 25);
+  --pm-project-stopped-border: oklch(0.62 0.2 25 / 0.22);
+  --pm-project-stopped-accent: oklch(0.62 0.2 25);
+
+  /* Sprint lifecycle (aligned with project semantics) */
+  --pm-sprint-pending-bg: var(--pm-project-pending-bg);
+  --pm-sprint-pending-fg: var(--pm-project-pending-fg);
+  --pm-sprint-pending-border: var(--pm-project-pending-border);
+  --pm-sprint-pending-dot: oklch(0.62 0.12 285);
+
+  --pm-sprint-running-bg: var(--pm-project-running-bg);
+  --pm-sprint-running-fg: var(--pm-project-running-fg);
+  --pm-sprint-running-border: var(--pm-project-running-border);
+  --pm-sprint-running-dot: var(--pm-project-running-accent);
+
+  --pm-sprint-completed-bg: var(--pm-project-completed-bg);
+  --pm-sprint-completed-fg: var(--pm-project-completed-fg);
+  --pm-sprint-completed-border: var(--pm-project-completed-border);
+  --pm-sprint-completed-dot: var(--pm-project-completed-accent);
+
+  --pm-sprint-stopped-bg: var(--pm-project-stopped-bg);
+  --pm-sprint-stopped-fg: var(--pm-project-stopped-fg);
+  --pm-sprint-stopped-border: var(--pm-project-stopped-border);
+  --pm-sprint-stopped-dot: var(--pm-project-stopped-accent);
+
+  /* Task workflow (Kanban / list) */
+  --pm-task-backlog-bg: oklch(0.55 0.05 285 / 0.08);
+  --pm-task-backlog-fg: oklch(0.5 0.06 285);
+  --pm-task-backlog-border: oklch(0.55 0.08 285 / 0.18);
+  --pm-task-backlog-dot: oklch(0.55 0.08 285 / 0.45);
+
+  --pm-task-todo-bg: oklch(0.55 0.14 292 / 0.08);
+  --pm-task-todo-fg: oklch(0.5 0.14 292);
+  --pm-task-todo-border: oklch(0.55 0.14 292 / 0.2);
+  --pm-task-todo-dot: oklch(0.55 0.14 292);
+
+  --pm-task-in-progress-bg: oklch(0.51 0.18 275 / 0.1);
+  --pm-task-in-progress-fg: oklch(0.48 0.18 275);
+  --pm-task-in-progress-border: oklch(0.51 0.18 275 / 0.22);
+  --pm-task-in-progress-dot: oklch(0.51 0.18 275);
+
+  --pm-task-testing-bg: oklch(0.52 0.16 290 / 0.12);
+  --pm-task-testing-fg: oklch(0.48 0.14 290);
+  --pm-task-testing-border: oklch(0.52 0.16 290 / 0.22);
+  --pm-task-testing-dot: oklch(0.52 0.16 290);
+
+  --pm-task-in-review-bg: oklch(0.58 0.12 270 / 0.1);
+  --pm-task-in-review-fg: oklch(0.48 0.14 270);
+  --pm-task-in-review-border: oklch(0.58 0.12 270 / 0.22);
+  --pm-task-in-review-dot: oklch(0.58 0.12 270);
+
+  --pm-task-done-bg: oklch(0.55 0.14 155 / 0.12);
+  --pm-task-done-fg: oklch(0.45 0.14 155);
+  --pm-task-done-border: oklch(0.55 0.14 155 / 0.22);
+  --pm-task-done-dot: oklch(0.55 0.14 155);
+
+  /* Task priority */
+  --pm-priority-urgent-bg: oklch(0.62 0.2 25 / 0.12);
+  --pm-priority-urgent-fg: oklch(0.52 0.2 25);
+  --pm-priority-urgent-border: oklch(0.62 0.2 25 / 0.28);
+  --pm-priority-urgent-dot: oklch(0.62 0.2 25);
+
+  --pm-priority-high-bg: oklch(0.62 0.2 25 / 0.08);
+  --pm-priority-high-fg: oklch(0.52 0.18 25);
+  --pm-priority-high-border: oklch(0.62 0.2 25 / 0.22);
+  --pm-priority-high-dot: oklch(0.58 0.18 25 / 0.75);
+
+  --pm-priority-medium-bg: oklch(0.51 0.18 275 / 0.1);
+  --pm-priority-medium-fg: oklch(0.48 0.18 275);
+  --pm-priority-medium-border: oklch(0.51 0.18 275 / 0.22);
+  --pm-priority-medium-dot: oklch(0.51 0.18 275);
+
+  --pm-priority-low-bg: oklch(0.55 0.08 285 / 0.08);
+  --pm-priority-low-fg: oklch(0.5 0.06 285);
+  --pm-priority-low-border: oklch(0.55 0.08 285 / 0.18);
+  --pm-priority-low-dot: oklch(0.55 0.08 285 / 0.5);
+
+  /* Task type */
+  --pm-type-story-bg: oklch(0.55 0.14 155 / 0.1);
+  --pm-type-story-fg: oklch(0.45 0.14 155);
+  --pm-type-story-border: oklch(0.55 0.14 155 / 0.22);
+  --pm-type-story-dot: oklch(0.55 0.14 155);
+
+  --pm-type-task-bg: oklch(0.55 0.14 292 / 0.08);
+  --pm-type-task-fg: oklch(0.5 0.14 292);
+  --pm-type-task-border: oklch(0.55 0.14 292 / 0.18);
+  --pm-type-task-dot: oklch(0.55 0.14 292);
+
+  --pm-type-bug-bg: oklch(0.62 0.2 25 / 0.1);
+  --pm-type-bug-fg: oklch(0.52 0.2 25);
+  --pm-type-bug-border: oklch(0.62 0.2 25 / 0.22);
+  --pm-type-bug-dot: oklch(0.62 0.2 25);
+
+  --pm-type-spike-bg: oklch(0.58 0.14 305 / 0.1);
+  --pm-type-spike-fg: oklch(0.48 0.14 305);
+  --pm-type-spike-border: oklch(0.58 0.14 305 / 0.22);
+  --pm-type-spike-dot: oklch(0.58 0.14 305);
+
+  --pm-type-epic-bg: oklch(0.49 0.17 275 / 0.1);
+  --pm-type-epic-fg: oklch(0.46 0.17 275);
+  --pm-type-epic-border: oklch(0.49 0.17 275 / 0.22);
+  --pm-type-epic-dot: oklch(0.49 0.17 275);
+
+  /* Epic strip badge (shared) */
+  --pm-epic-badge-bg: oklch(0.49 0.17 275 / 0.1);
+  --pm-epic-badge-fg: oklch(0.46 0.17 275);
+  --pm-epic-badge-border: oklch(0.49 0.17 275 / 0.22);
+
+  /* Business unit */
+  --pm-bu-dev-bg: oklch(0.55 0.14 250 / 0.1);
+  --pm-bu-dev-fg: oklch(0.48 0.14 250);
+  --pm-bu-dev-border: oklch(0.55 0.14 250 / 0.22);
+
+  --pm-bu-creative-bg: oklch(0.58 0.16 305 / 0.1);
+  --pm-bu-creative-fg: oklch(0.48 0.14 305);
+  --pm-bu-creative-border: oklch(0.58 0.16 305 / 0.22);
+
+  /* Project type */
+  --pm-type-agile-bg: oklch(0.55 0.14 292 / 0.06);
+  --pm-type-agile-fg: oklch(0.48 0.14 292);
+  --pm-type-agile-border: oklch(0.55 0.14 292 / 0.12);
+
+  --pm-type-freestyle-bg: oklch(0.94 0.008 285 / 0.6);
+  --pm-type-freestyle-fg: oklch(0.45 0.04 285);
+  --pm-type-freestyle-border: oklch(0.88 0.012 280 / 0.7);
+
+  /* Timeline progress ring (SVG stroke via currentColor) */
+  --pm-progress-track: oklch(0.9 0.01 280);
+  --pm-progress-fill-early: oklch(0.72 0.12 275);
+  --pm-progress-fill-mid: oklch(0.58 0.16 275);
+  --pm-progress-fill-late: oklch(0.48 0.18 275);
+  --pm-progress-fill-complete: oklch(0.55 0.14 155);
+  --pm-progress-fill-overdue: oklch(0.62 0.2 25);
+
+  /* Story points pill */
+  --pm-points-bg: oklch(0.55 0.14 292 / 0.08);
+  --pm-points-fg: oklch(0.5 0.14 292);
+  --pm-points-border: oklch(0.55 0.14 292 / 0.2);
+
+  /* AI / blocker risk surfaces */
+  --pm-risk-low-bg: oklch(0.55 0.14 155 / 0.08);
+  --pm-risk-low-fg: oklch(0.45 0.14 155);
+  --pm-risk-low-border: oklch(0.55 0.14 155 / 0.35);
+  --pm-risk-low-surface: oklch(0.55 0.14 155 / 0.05);
+
+  --pm-risk-medium-bg: oklch(0.55 0.14 292 / 0.08);
+  --pm-risk-medium-fg: oklch(0.48 0.14 292);
+  --pm-risk-medium-border: oklch(0.55 0.14 292 / 0.35);
+  --pm-risk-medium-surface: oklch(0.55 0.14 292 / 0.05);
+
+  --pm-risk-high-bg: oklch(0.62 0.2 25 / 0.1);
+  --pm-risk-high-fg: oklch(0.55 0.2 25);
+  --pm-risk-high-border: oklch(0.62 0.2 25 / 0.35);
+  --pm-risk-high-surface: oklch(0.62 0.2 25 / 0.05);
+
+  --pm-risk-info-bg: oklch(0.58 0.12 270 / 0.08);
+  --pm-risk-info-fg: oklch(0.48 0.14 270);
+  --pm-risk-info-border: oklch(0.58 0.12 270 / 0.3);
+
+  /* Personal task accent (lifecycle-aligned) */
+  --pm-task-accent-pending: oklch(0.55 0.05 285);
+  --pm-task-accent-todo: oklch(0.55 0.14 292);
+  --pm-task-accent-in-progress: oklch(0.51 0.18 275);
+  --pm-task-accent-done: oklch(0.55 0.14 155);
+
+  /* Page-header metric chip tones (semantic) */
+  --pm-tone-success-bg: oklch(0.55 0.14 155 / 0.1);
+  --pm-tone-success-fg: oklch(0.45 0.14 155);
+  --pm-tone-success-border: oklch(0.55 0.14 155 / 0.3);
+
+  --pm-tone-running-bg: oklch(0.51 0.18 275 / 0.1);
+  --pm-tone-running-fg: oklch(0.48 0.18 275);
+  --pm-tone-running-border: oklch(0.51 0.18 275 / 0.3);
+
+  --pm-tone-info-bg: oklch(0.58 0.12 270 / 0.08);
+  --pm-tone-info-fg: oklch(0.48 0.14 270);
+  --pm-tone-info-border: oklch(0.58 0.12 270 / 0.3);
+
+  --pm-tone-warning-bg: oklch(0.62 0.2 25 / 0.08);
+  --pm-tone-warning-fg: oklch(0.55 0.2 25);
+  --pm-tone-warning-border: oklch(0.62 0.2 25 / 0.28);
+
+  /* Epic strip default fallback (when epic.color is not set) */
+  --pm-epic-strip-default: oklch(0.49 0.17 275);
+}
+
+.dark {
+  --pm-project-pending-bg: oklch(0.28 0.03 285);
+  --pm-project-pending-fg: oklch(0.78 0.04 285);
+  --pm-project-pending-border: oklch(0.38 0.04 285);
+  --pm-project-pending-accent: oklch(0.65 0.04 285);
+
+  --pm-project-running-bg: oklch(0.68 0.14 275 / 0.15);
+  --pm-project-running-fg: oklch(0.78 0.12 275);
+  --pm-project-running-border: oklch(0.68 0.14 275 / 0.35);
+  --pm-project-running-accent: oklch(0.68 0.14 275);
+
+  --pm-project-completed-bg: oklch(0.55 0.14 155 / 0.18);
+  --pm-project-completed-fg: oklch(0.78 0.12 155);
+  --pm-project-completed-border: oklch(0.55 0.14 155 / 0.35);
+  --pm-project-completed-accent: oklch(0.65 0.14 155);
+
+  --pm-project-stopped-bg: oklch(0.62 0.2 25 / 0.15);
+  --pm-project-stopped-fg: oklch(0.78 0.14 25);
+  --pm-project-stopped-border: oklch(0.62 0.2 25 / 0.35);
+  --pm-project-stopped-accent: oklch(0.72 0.18 25);
+
+  --pm-task-backlog-bg: oklch(0.35 0.04 285 / 0.35);
+  --pm-task-backlog-fg: oklch(0.82 0.04 285);
+  --pm-task-backlog-border: oklch(0.45 0.06 285 / 0.5);
+  --pm-task-backlog-dot: oklch(0.65 0.08 285 / 0.55);
+
+  --pm-task-todo-bg: oklch(0.68 0.14 292 / 0.12);
+  --pm-task-todo-fg: oklch(0.82 0.1 292);
+  --pm-task-todo-border: oklch(0.68 0.14 292 / 0.35);
+  --pm-task-todo-dot: oklch(0.72 0.14 292);
+
+  --pm-task-in-progress-bg: oklch(0.68 0.14 275 / 0.15);
+  --pm-task-in-progress-fg: oklch(0.85 0.1 275);
+  --pm-task-in-progress-border: oklch(0.68 0.14 275 / 0.35);
+  --pm-task-in-progress-dot: oklch(0.72 0.14 275);
+
+  --pm-task-testing-bg: oklch(0.6 0.14 290 / 0.18);
+  --pm-task-testing-fg: oklch(0.85 0.08 290);
+  --pm-task-testing-border: oklch(0.6 0.14 290 / 0.35);
+  --pm-task-testing-dot: oklch(0.7 0.14 290);
+
+  --pm-task-in-review-bg: oklch(0.62 0.12 270 / 0.15);
+  --pm-task-in-review-fg: oklch(0.82 0.08 270);
+  --pm-task-in-review-border: oklch(0.62 0.12 270 / 0.35);
+  --pm-task-in-review-dot: oklch(0.72 0.12 270);
+
+  --pm-task-done-bg: oklch(0.55 0.14 155 / 0.18);
+  --pm-task-done-fg: oklch(0.85 0.1 155);
+  --pm-task-done-border: oklch(0.55 0.14 155 / 0.35);
+  --pm-task-done-dot: oklch(0.68 0.14 155);
+
+  --pm-priority-urgent-bg: oklch(0.62 0.2 25 / 0.18);
+  --pm-priority-urgent-fg: oklch(0.88 0.12 25);
+  --pm-priority-urgent-border: oklch(0.62 0.2 25 / 0.38);
+  --pm-priority-urgent-dot: oklch(0.75 0.18 25);
+
+  --pm-priority-high-bg: oklch(0.62 0.2 25 / 0.12);
+  --pm-priority-high-fg: oklch(0.85 0.12 25);
+  --pm-priority-high-border: oklch(0.62 0.2 25 / 0.32);
+  --pm-priority-high-dot: oklch(0.7 0.18 25 / 0.85);
+
+  --pm-priority-medium-bg: oklch(0.68 0.14 275 / 0.12);
+  --pm-priority-medium-fg: oklch(0.85 0.1 275);
+  --pm-priority-medium-border: oklch(0.68 0.14 275 / 0.32);
+  --pm-priority-medium-dot: oklch(0.72 0.14 275);
+
+  --pm-priority-low-bg: oklch(0.4 0.05 285 / 0.35);
+  --pm-priority-low-fg: oklch(0.78 0.05 285);
+  --pm-priority-low-border: oklch(0.5 0.06 285 / 0.45);
+  --pm-priority-low-dot: oklch(0.6 0.08 285 / 0.55);
+
+  --pm-type-story-bg: oklch(0.55 0.14 155 / 0.15);
+  --pm-type-story-fg: oklch(0.85 0.1 155);
+  --pm-type-story-border: oklch(0.55 0.14 155 / 0.35);
+  --pm-type-story-dot: oklch(0.68 0.14 155);
+
+  --pm-type-task-bg: oklch(0.68 0.14 292 / 0.12);
+  --pm-type-task-fg: oklch(0.85 0.1 292);
+  --pm-type-task-border: oklch(0.68 0.14 292 / 0.32);
+  --pm-type-task-dot: oklch(0.72 0.14 292);
+
+  --pm-type-bug-bg: oklch(0.62 0.2 25 / 0.12);
+  --pm-type-bug-fg: oklch(0.88 0.12 25);
+  --pm-type-bug-border: oklch(0.62 0.2 25 / 0.32);
+  --pm-type-bug-dot: oklch(0.75 0.18 25);
+
+  --pm-type-spike-bg: oklch(0.58 0.14 305 / 0.15);
+  --pm-type-spike-fg: oklch(0.85 0.1 305);
+  --pm-type-spike-border: oklch(0.58 0.14 305 / 0.32);
+  --pm-type-spike-dot: oklch(0.72 0.14 305);
+
+  --pm-type-epic-bg: oklch(0.55 0.16 275 / 0.15);
+  --pm-type-epic-fg: oklch(0.88 0.1 275);
+  --pm-type-epic-border: oklch(0.55 0.16 275 / 0.35);
+  --pm-type-epic-dot: oklch(0.68 0.16 275);
+
+  --pm-epic-badge-bg: oklch(0.55 0.16 275 / 0.15);
+  --pm-epic-badge-fg: oklch(0.88 0.1 275);
+  --pm-epic-badge-border: oklch(0.55 0.16 275 / 0.35);
+
+  --pm-bu-dev-bg: oklch(0.55 0.14 250 / 0.15);
+  --pm-bu-dev-fg: oklch(0.82 0.1 250);
+  --pm-bu-dev-border: oklch(0.55 0.14 250 / 0.35);
+
+  --pm-bu-creative-bg: oklch(0.58 0.16 305 / 0.15);
+  --pm-bu-creative-fg: oklch(0.85 0.1 305);
+  --pm-bu-creative-border: oklch(0.58 0.16 305 / 0.35);
+
+  --pm-type-agile-bg: oklch(0.68 0.14 292 / 0.1);
+  --pm-type-agile-fg: oklch(0.88 0.1 292);
+  --pm-type-agile-border: oklch(0.68 0.14 292 / 0.25);
+
+  --pm-type-freestyle-bg: oklch(0.28 0.03 285);
+  --pm-type-freestyle-fg: oklch(0.78 0.04 285);
+  --pm-type-freestyle-border: oklch(0.38 0.04 285);
+
+  --pm-progress-track: oklch(0.35 0.04 285);
+  --pm-progress-fill-early: oklch(0.72 0.12 275);
+  --pm-progress-fill-mid: oklch(0.62 0.14 275);
+  --pm-progress-fill-late: oklch(0.55 0.16 275);
+  --pm-progress-fill-complete: oklch(0.68 0.14 155);
+  --pm-progress-fill-overdue: oklch(0.72 0.18 25);
+
+  --pm-sprint-pending-dot: oklch(0.65 0.1 285);
+
+  --pm-points-bg: oklch(0.68 0.14 292 / 0.12);
+  --pm-points-fg: oklch(0.85 0.1 292);
+  --pm-points-border: oklch(0.68 0.14 292 / 0.32);
+
+  --pm-risk-low-bg: oklch(0.55 0.14 155 / 0.18);
+  --pm-risk-low-fg: oklch(0.85 0.1 155);
+  --pm-risk-low-border: oklch(0.55 0.14 155 / 0.4);
+  --pm-risk-low-surface: oklch(0.55 0.14 155 / 0.08);
+
+  --pm-risk-medium-bg: oklch(0.68 0.14 292 / 0.15);
+  --pm-risk-medium-fg: oklch(0.88 0.1 292);
+  --pm-risk-medium-border: oklch(0.68 0.14 292 / 0.4);
+  --pm-risk-medium-surface: oklch(0.68 0.14 292 / 0.08);
+
+  --pm-risk-high-bg: oklch(0.62 0.2 25 / 0.18);
+  --pm-risk-high-fg: oklch(0.88 0.12 25);
+  --pm-risk-high-border: oklch(0.62 0.2 25 / 0.4);
+  --pm-risk-high-surface: oklch(0.62 0.2 25 / 0.08);
+
+  --pm-risk-info-bg: oklch(0.62 0.12 270 / 0.15);
+  --pm-risk-info-fg: oklch(0.85 0.08 270);
+  --pm-risk-info-border: oklch(0.62 0.12 270 / 0.35);
+
+  --pm-task-accent-pending: oklch(0.6 0.04 285);
+  --pm-task-accent-todo: oklch(0.72 0.14 292);
+  --pm-task-accent-in-progress: oklch(0.72 0.14 275);
+  --pm-task-accent-done: oklch(0.68 0.14 155);
+
+  --pm-tone-success-bg: oklch(0.55 0.14 155 / 0.18);
+  --pm-tone-success-fg: oklch(0.85 0.1 155);
+  --pm-tone-success-border: oklch(0.55 0.14 155 / 0.4);
+
+  --pm-tone-running-bg: oklch(0.68 0.14 275 / 0.15);
+  --pm-tone-running-fg: oklch(0.85 0.1 275);
+  --pm-tone-running-border: oklch(0.68 0.14 275 / 0.4);
+
+  --pm-tone-info-bg: oklch(0.62 0.12 270 / 0.15);
+  --pm-tone-info-fg: oklch(0.85 0.08 270);
+  --pm-tone-info-border: oklch(0.62 0.12 270 / 0.35);
+
+  --pm-tone-warning-bg: oklch(0.62 0.2 25 / 0.15);
+  --pm-tone-warning-fg: oklch(0.88 0.12 25);
+  --pm-tone-warning-border: oklch(0.62 0.2 25 / 0.4);
+
+  --pm-epic-strip-default: oklch(0.68 0.16 275);
+}
+
+/* ── Atomic badge utilities (border must pair with Badge variant="outline") ─ */
+@layer components {
+  /* Project status */
+  .pm-badge-project-pending {
+    background-color: var(--pm-project-pending-bg);
+    color: var(--pm-project-pending-fg);
+    border-color: var(--pm-project-pending-border);
+  }
+  .pm-badge-project-running {
+    background-color: var(--pm-project-running-bg);
+    color: var(--pm-project-running-fg);
+    border-color: var(--pm-project-running-border);
+  }
+  .pm-badge-project-completed {
+    background-color: var(--pm-project-completed-bg);
+    color: var(--pm-project-completed-fg);
+    border-color: var(--pm-project-completed-border);
+  }
+  .pm-badge-project-stopped {
+    background-color: var(--pm-project-stopped-bg);
+    color: var(--pm-project-stopped-fg);
+    border-color: var(--pm-project-stopped-border);
+  }
+
+  /* Sprint status */
+  .pm-badge-sprint-pending {
+    background-color: var(--pm-sprint-pending-bg);
+    color: var(--pm-sprint-pending-fg);
+    border-color: var(--pm-sprint-pending-border);
+  }
+  .pm-badge-sprint-running {
+    background-color: var(--pm-sprint-running-bg);
+    color: var(--pm-sprint-running-fg);
+    border-color: var(--pm-sprint-running-border);
+  }
+  .pm-badge-sprint-completed {
+    background-color: var(--pm-sprint-completed-bg);
+    color: var(--pm-sprint-completed-fg);
+    border-color: var(--pm-sprint-completed-border);
+  }
+  .pm-badge-sprint-stopped {
+    background-color: var(--pm-sprint-stopped-bg);
+    color: var(--pm-sprint-stopped-fg);
+    border-color: var(--pm-sprint-stopped-border);
+  }
+
+  /* Task status */
+  .pm-badge-task-backlog {
+    background-color: var(--pm-task-backlog-bg);
+    color: var(--pm-task-backlog-fg);
+    border-color: var(--pm-task-backlog-border);
+  }
+  .pm-badge-task-todo {
+    background-color: var(--pm-task-todo-bg);
+    color: var(--pm-task-todo-fg);
+    border-color: var(--pm-task-todo-border);
+  }
+  .pm-badge-task-in-progress {
+    background-color: var(--pm-task-in-progress-bg);
+    color: var(--pm-task-in-progress-fg);
+    border-color: var(--pm-task-in-progress-border);
+  }
+  .pm-badge-task-testing {
+    background-color: var(--pm-task-testing-bg);
+    color: var(--pm-task-testing-fg);
+    border-color: var(--pm-task-testing-border);
+  }
+  .pm-badge-task-in-review {
+    background-color: var(--pm-task-in-review-bg);
+    color: var(--pm-task-in-review-fg);
+    border-color: var(--pm-task-in-review-border);
+  }
+  .pm-badge-task-done {
+    background-color: var(--pm-task-done-bg);
+    color: var(--pm-task-done-fg);
+    border-color: var(--pm-task-done-border);
+  }
+
+  /* Priority */
+  .pm-badge-priority-urgent {
+    background-color: var(--pm-priority-urgent-bg);
+    color: var(--pm-priority-urgent-fg);
+    border-color: var(--pm-priority-urgent-border);
+  }
+  .pm-badge-priority-high {
+    background-color: var(--pm-priority-high-bg);
+    color: var(--pm-priority-high-fg);
+    border-color: var(--pm-priority-high-border);
+  }
+  .pm-badge-priority-medium {
+    background-color: var(--pm-priority-medium-bg);
+    color: var(--pm-priority-medium-fg);
+    border-color: var(--pm-priority-medium-border);
+  }
+  .pm-badge-priority-low {
+    background-color: var(--pm-priority-low-bg);
+    color: var(--pm-priority-low-fg);
+    border-color: var(--pm-priority-low-border);
+  }
+
+  /* Task type */
+  .pm-badge-type-story {
+    background-color: var(--pm-type-story-bg);
+    color: var(--pm-type-story-fg);
+    border-color: var(--pm-type-story-border);
+  }
+  .pm-badge-type-task {
+    background-color: var(--pm-type-task-bg);
+    color: var(--pm-type-task-fg);
+    border-color: var(--pm-type-task-border);
+  }
+  .pm-badge-type-bug {
+    background-color: var(--pm-type-bug-bg);
+    color: var(--pm-type-bug-fg);
+    border-color: var(--pm-type-bug-border);
+  }
+  .pm-badge-type-spike {
+    background-color: var(--pm-type-spike-bg);
+    color: var(--pm-type-spike-fg);
+    border-color: var(--pm-type-spike-border);
+  }
+  .pm-badge-type-epic {
+    background-color: var(--pm-type-epic-bg);
+    color: var(--pm-type-epic-fg);
+    border-color: var(--pm-type-epic-border);
+  }
+
+  .pm-badge-epic-strip {
+    background-color: var(--pm-epic-badge-bg);
+    color: var(--pm-epic-badge-fg);
+    border-color: var(--pm-epic-badge-border);
+  }
+
+  /* Business unit */
+  .pm-badge-bu-dev {
+    background-color: var(--pm-bu-dev-bg);
+    color: var(--pm-bu-dev-fg);
+    border-color: var(--pm-bu-dev-border);
+  }
+  .pm-badge-bu-creative {
+    background-color: var(--pm-bu-creative-bg);
+    color: var(--pm-bu-creative-fg);
+    border-color: var(--pm-bu-creative-border);
+  }
+
+  /* Org user role badge — chroma is driven by the per-role `--pm-role-h` hue
+     set inline via `userRoleStyle(role)`. Same class for every role, distinct
+     color per badge. */
+  .pm-badge-user-role {
+    background-color: oklch(0.55 0.13 var(--pm-role-h, 280) / 0.1);
+    color: oklch(0.42 0.13 var(--pm-role-h, 280));
+    border-color: oklch(0.55 0.13 var(--pm-role-h, 280) / 0.3);
+  }
+
+  /* Project type (Agile / Freestyle) */
+  .pm-badge-project-type-agile {
+    background-color: var(--pm-type-agile-bg);
+    color: var(--pm-type-agile-fg);
+    border-color: var(--pm-type-agile-border);
+  }
+  .pm-badge-project-type-freestyle {
+    background-color: var(--pm-type-freestyle-bg);
+    color: var(--pm-type-freestyle-fg);
+    border-color: var(--pm-type-freestyle-border);
+  }
+
+  /* Dots (leading pills, kanban) — use with size utility e.g. size-1.5 rounded-full */
+  .pm-dot-project-pending {
+    background-color: var(--pm-project-pending-accent);
+  }
+  .pm-dot-project-running {
+    background-color: var(--pm-project-running-accent);
+  }
+  .pm-dot-project-completed {
+    background-color: var(--pm-project-completed-accent);
+  }
+  .pm-dot-project-stopped {
+    background-color: var(--pm-project-stopped-accent);
+  }
+
+  .pm-dot-sprint-pending {
+    background-color: var(--pm-sprint-pending-dot);
+  }
+  .pm-dot-sprint-running {
+    background-color: var(--pm-sprint-running-dot);
+  }
+  .pm-dot-sprint-completed {
+    background-color: var(--pm-sprint-completed-dot);
+  }
+  .pm-dot-sprint-stopped {
+    background-color: var(--pm-sprint-stopped-dot);
+  }
+
+  .pm-dot-task-backlog {
+    background-color: var(--pm-task-backlog-dot);
+  }
+  .pm-dot-task-todo {
+    background-color: var(--pm-task-todo-dot);
+  }
+  .pm-dot-task-in-progress {
+    background-color: var(--pm-task-in-progress-dot);
+  }
+  .pm-dot-task-testing {
+    background-color: var(--pm-task-testing-dot);
+  }
+  .pm-dot-task-in-review {
+    background-color: var(--pm-task-in-review-dot);
+  }
+  .pm-dot-task-done {
+    background-color: var(--pm-task-done-dot);
+  }
+
+  .pm-dot-priority-urgent {
+    background-color: var(--pm-priority-urgent-dot);
+  }
+  .pm-dot-priority-high {
+    background-color: var(--pm-priority-high-dot);
+  }
+  .pm-dot-priority-medium {
+    background-color: var(--pm-priority-medium-dot);
+  }
+  .pm-dot-priority-low {
+    background-color: var(--pm-priority-low-dot);
+  }
+
+  .pm-dot-type-story {
+    background-color: var(--pm-type-story-dot);
+  }
+  .pm-dot-type-task {
+    background-color: var(--pm-type-task-dot);
+  }
+  .pm-dot-type-bug {
+    background-color: var(--pm-type-bug-dot);
+  }
+  .pm-dot-type-spike {
+    background-color: var(--pm-type-spike-dot);
+  }
+  .pm-dot-type-epic {
+    background-color: var(--pm-type-epic-dot);
+  }
+
+  .pm-dot-bu-dev {
+    background-color: var(--pm-bu-dev-fg);
+  }
+  .pm-dot-bu-creative {
+    background-color: var(--pm-bu-creative-fg);
+  }
+
+  /* Org user role dot — uses the same per-role `--pm-role-h` hue (cascaded
+     from the wrapping badge) so the dot color matches its badge. */
+  .pm-dot-user-role {
+    background-color: oklch(0.55 0.16 var(--pm-role-h, 280));
+  }
+
+  /* Card left accent bar (project list cards) */
+  .pm-accent-project-pending {
+    background-color: var(--pm-project-pending-accent);
+  }
+  .pm-accent-project-running {
+    background-color: var(--pm-project-running-accent);
+  }
+  .pm-accent-project-completed {
+    background-color: var(--pm-project-completed-accent);
+  }
+  .pm-accent-project-stopped {
+    background-color: var(--pm-project-stopped-accent);
+  }
+
+  /* Progress ring stroke (set on SVG circle; uses currentColor) */
+  .pm-progress-ring-track {
+    color: var(--pm-progress-track);
+  }
+  .pm-progress-ring-early {
+    color: var(--pm-progress-fill-early);
+  }
+  .pm-progress-ring-mid {
+    color: var(--pm-progress-fill-mid);
+  }
+  .pm-progress-ring-late {
+    color: var(--pm-progress-fill-late);
+  }
+  .pm-progress-ring-complete {
+    color: var(--pm-progress-fill-complete);
+  }
+  .pm-progress-ring-overdue {
+    color: var(--pm-progress-fill-overdue);
+  }
+
+  /* Story points pill — agile-friendly indigo tint */
+  .pm-badge-points {
+    background-color: var(--pm-points-bg);
+    color: var(--pm-points-fg);
+    border-color: var(--pm-points-border);
+  }
+
+  /* AI / blocker risk badges */
+  .pm-badge-risk-low {
+    background-color: var(--pm-risk-low-bg);
+    color: var(--pm-risk-low-fg);
+    border-color: var(--pm-risk-low-border);
+  }
+  .pm-badge-risk-medium {
+    background-color: var(--pm-risk-medium-bg);
+    color: var(--pm-risk-medium-fg);
+    border-color: var(--pm-risk-medium-border);
+  }
+  .pm-badge-risk-high {
+    background-color: var(--pm-risk-high-bg);
+    color: var(--pm-risk-high-fg);
+    border-color: var(--pm-risk-high-border);
+  }
+  .pm-badge-risk-info {
+    background-color: var(--pm-risk-info-bg);
+    color: var(--pm-risk-info-fg);
+    border-color: var(--pm-risk-info-border);
+  }
+
+  /* Risk panel surfaces (for surrounding card / panel containers) */
+  .pm-surface-risk-low {
+    background-color: var(--pm-risk-low-surface);
+    border-color: var(--pm-risk-low-border);
+  }
+  .pm-surface-risk-medium {
+    background-color: var(--pm-risk-medium-surface);
+    border-color: var(--pm-risk-medium-border);
+  }
+  .pm-surface-risk-high {
+    background-color: var(--pm-risk-high-surface);
+    border-color: var(--pm-risk-high-border);
+  }
+
+  /* Personal-task accent bar (consumed by Personal Tasks list/grid) */
+  .pm-accent-task-pending {
+    background-color: var(--pm-task-accent-pending);
+  }
+  .pm-accent-task-todo {
+    background-color: var(--pm-task-accent-todo);
+  }
+  .pm-accent-task-in-progress {
+    background-color: var(--pm-task-accent-in-progress);
+  }
+  .pm-accent-task-done {
+    background-color: var(--pm-task-accent-done);
+  }
+
+  /* Page-header semantic chip tones */
+  .pm-tone-success {
+    background-color: var(--pm-tone-success-bg);
+    color: var(--pm-tone-success-fg);
+    border-color: var(--pm-tone-success-border);
+  }
+  .pm-tone-running {
+    background-color: var(--pm-tone-running-bg);
+    color: var(--pm-tone-running-fg);
+    border-color: var(--pm-tone-running-border);
+  }
+  .pm-tone-info {
+    background-color: var(--pm-tone-info-bg);
+    color: var(--pm-tone-info-fg);
+    border-color: var(--pm-tone-info-border);
+  }
+  .pm-tone-warning {
+    background-color: var(--pm-tone-warning-bg);
+    color: var(--pm-tone-warning-fg);
+    border-color: var(--pm-tone-warning-border);
+  }
+
+  /* Epic accent strip default (top thin strip when epic.color isn't set) */
+  .pm-accent-epic-default {
+    background-color: var(--pm-epic-strip-default);
+  }
+
+  /* Foreground (icon / text) tints for inline action buttons.
+     Useful for Play/Stop/Complete buttons in sprint, project, task cards. */
+  .pm-text-project-running { color: var(--pm-project-running-accent); }
+  .pm-text-project-completed { color: var(--pm-project-completed-accent); }
+  .pm-text-project-stopped { color: var(--pm-project-stopped-accent); }
+  .pm-text-sprint-running { color: var(--pm-sprint-running-dot); }
+  .pm-text-sprint-completed { color: var(--pm-sprint-completed-dot); }
+  .pm-text-task-in-progress { color: var(--pm-task-in-progress-dot); }
+  .pm-text-task-done { color: var(--pm-task-done-dot); }
+
+  /* Dark-mode overrides for the per-role hue badge / dot.
+     Lifts foreground lightness for contrast on dark surfaces. */
+  .dark .pm-badge-user-role {
+    background-color: oklch(0.65 0.14 var(--pm-role-h, 280) / 0.18);
+    color: oklch(0.86 0.1 var(--pm-role-h, 280));
+    border-color: oklch(0.65 0.14 var(--pm-role-h, 280) / 0.4);
+  }
+  .dark .pm-dot-user-role {
+    background-color: oklch(0.7 0.16 var(--pm-role-h, 280));
+  }
+}

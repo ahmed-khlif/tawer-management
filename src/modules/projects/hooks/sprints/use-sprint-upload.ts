@@ -1,0 +1,111 @@
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { sprintSchema, SprintFormValues } from "../../validation/sprint.schema";
+import { uploadSprint } from "../../services";
+import {
+  SprintType,
+  SprintContentPayload,
+  CreatedSprintAiResponse,
+} from "../../types/project-sprints";
+
+function buildDefaults(sprint?: SprintType | null): SprintFormValues {
+  const now = new Date(); now.setMinutes(0, 0, 0);
+  const twoWeeks = new Date(now); twoWeeks.setDate(twoWeeks.getDate() + 14);
+  return {
+    name: sprint?.name ?? "",
+    description: sprint?.description ?? "",
+    details: sprint?.details ?? "",
+    language: sprint?.contents?.[0]?.language ?? "English",
+    status: sprint?.status ?? "Pending",
+    startDate: sprint?.startDate ? sprint.startDate.toISOString() : now.toISOString(),
+    endDate: sprint?.endDate ? sprint.endDate.toISOString() : twoWeeks.toISOString(),
+    estimatedStartDate: sprint?.estimatedStartDate ? sprint.estimatedStartDate.toISOString() : now.toISOString(),
+    estimatedEndDate: sprint?.estimatedEndDate ? sprint.estimatedEndDate.toISOString() : twoWeeks.toISOString(),
+    capacity: sprint?.capacity ?? undefined,
+    aiSuggestCapacity: false,
+    aiSuggestPlanning: false,
+  };
+}
+
+interface Params {
+  projectId: string;
+  sprint?: SprintType | null;
+  onSuccess?: (aiResponse?: CreatedSprintAiResponse) => void;
+}
+
+export default function useSprintUpload({ projectId, sprint, onSuccess }: Params) {
+  const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState("");
+  const [aiResponse, setAiResponse] = useState<CreatedSprintAiResponse | null>(null);
+
+  const form = useForm<SprintFormValues>({
+    resolver: zodResolver(sprintSchema) as any,
+    defaultValues: buildDefaults(sprint),
+  });
+
+  useEffect(() => {
+    form.reset(buildDefaults(sprint));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sprint?.id]);
+
+  async function onSubmit(data: SprintFormValues) {
+    setIsPending(true);
+    setError("");
+    try {
+      const existingContent = sprint?.contents?.[0];
+      const content: SprintContentPayload = {
+        id: existingContent?.id,
+        name: data.name,
+        description: data.description,
+        details: data.details,
+        language: data.language,
+      };
+
+      const response = await uploadSprint(
+        projectId,
+        {
+          startDate: data.startDate,
+          endDate: data.endDate,
+          estimatedStartDate: data.estimatedStartDate,
+          estimatedEndDate: data.estimatedEndDate,
+          status: data.status,
+          capacity: typeof data.capacity === "number" ? data.capacity : undefined,
+          content: [content],
+          ...(sprint?.id
+            ? {}
+            : {
+                aiSuggestCapacity: data.aiSuggestCapacity,
+                aiSuggestPlanning: data.aiSuggestPlanning,
+              }),
+        },
+        sprint?.id,
+      );
+
+      if (!sprint?.id && response) {
+        setAiResponse(response);
+      }
+      toast.success(sprint?.id ? "Sprint updated" : "Sprint created");
+      queryClient.invalidateQueries({ queryKey: ["project-sprints", projectId] });
+      onSuccess?.(response ?? undefined);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "An error occurred.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return {
+    form,
+    isPending,
+    onSubmit,
+    error,
+    aiResponse,
+    clearAiResponse: () => setAiResponse(null),
+  };
+}

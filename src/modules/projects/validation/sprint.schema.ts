@@ -1,0 +1,18 @@
+import { z } from "zod";
+
+export const sprintSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  details: z.string().optional(),
+  language: z.enum(["Arabic", "French", "English"]).default("English"),
+  status: z.enum(["Pending", "Running", "Stopped", "Completed"]),
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
+  estimatedStartDate: z.string().min(1, "Estimated start date is required"),
+  estimatedEndDate: z.string().min(1, "Estimated end date is required"),
+  capacity: z.coerce.number().min(0).optional(),
+  aiSuggestCapacity: z.boolean().optional(),
+  aiSuggestPlanning: z.boolean().optional(),
+});
+
+export type SprintFormValues = z.infer<typeof sprintSchema>;

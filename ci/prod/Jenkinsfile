@@ -1,0 +1,84 @@
+@Library('jenkins-shared-lib') _
+
+pipeline {
+  agent any
+
+  parameters {
+    string(name: 'VERSION', defaultValue: 'latest', description: 'Version to deploy')
+    choice(name: 'ACTION', choices: ['build', 'deploy', 'both'], description: 'Action to perform')
+  }
+
+  environment {
+    DISCORD_WEBHOOK  = credentials('discord-webhook-url')
+    TELEGRAM_TOKEN   = credentials('telegram-token')
+    TELEGRAM_CHAT_ID = credentials('telegram-chat-id')
+  }
+
+  stages {
+
+    stage("Checkout") {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage("Build") {
+      when {
+        expression { params.ACTION in ['build', 'both'] }
+      }
+      steps {
+        script {
+          buildApp([
+            project: "tawer-management",
+            envType: "prod",,
+            pathInRegistry: "prod/tawer-management/website",
+          ])
+        }
+      }
+    }
+
+    stage("Deploy") {
+      when {
+        expression { params.ACTION in ['deploy', 'both'] }
+      }
+      steps {
+        script {
+          deployApp([
+            envType: "prod",
+            version: params.VERSION,
+            serverDomain: "prod1.tawer.tn",
+            serverUser: "tawer",
+            remotePath: "/home/tawer/env-deploy/services/tdg-management/frontend/website",
+            serverPort: 22,
+          ])
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      script {
+        notify.success([
+          action: params.ACTION,
+          version: params.VERSION,
+          discordWebhook: env.DISCORD_WEBHOOK,
+          telegramToken: env.TELEGRAM_TOKEN,
+          telegramChatId: env.TELEGRAM_CHAT_ID
+        ])
+      }
+    }
+
+    failure {
+      script {
+        notify.failure([
+          action: params.ACTION,
+          version: params.VERSION,
+          discordWebhook: env.DISCORD_WEBHOOK,
+          telegramToken: env.TELEGRAM_TOKEN,
+          telegramChatId: env.TELEGRAM_CHAT_ID
+        ])
+      }
+    }
+  }
+}

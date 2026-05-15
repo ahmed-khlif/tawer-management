@@ -1,0 +1,25 @@
+import { GET } from "@/lib/http-methods";
+import extractJWTokens from "@/modules/auth/utils/jwt/extract-tokens";
+import { refreshToken } from "@/modules/auth/services/refresh-token";
+import { UserInResponseType } from "@/modules/users/types/users";
+
+export interface ProjectCreator {
+  id: string;
+  name: string;
+}
+
+export default async function retrieveProjectCreators(): Promise<ProjectCreator[]> {
+  const { access } = extractJWTokens();
+  const headers = { Authorization: `Bearer ${access}` };
+
+  try {
+    const res = await GET(`/users?roles=CEO,CTO,CMO&limit=100&page=1`, headers);
+    return (res.data.data as UserInResponseType[]).map(u => ({ id: u.id, name: u.name }));
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => retrieveProjectCreators());
+      if (retried) return retried;
+    }
+    throw error;
+  }
+}
