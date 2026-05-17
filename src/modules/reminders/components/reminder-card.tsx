@@ -98,8 +98,8 @@ export default function ReminderCard({
   const userName = reminder.user?.name ?? "—";
 
   return (
-    <Card className="overflow-hidden transition-shadow hover:shadow-sm">
-      <div className="flex items-start gap-3 p-4">
+    <Card className="overflow-hidden border-border/70 bg-card/90 transition-all hover:-translate-y-px hover:border-primary/15 hover:shadow-md">
+      <div className="flex items-start gap-3 p-4 sm:p-5">
         {/* Status icon tile */}
         <div
           className={cn(
@@ -113,17 +113,14 @@ export default function ReminderCard({
 
         {/* Body */}
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium leading-snug truncate">
+          <div className="flex items-start justify-between gap-3">
+            <p className="min-w-0 text-sm font-medium leading-snug sm:text-[15px]">
               {reminder.message || "Untitled reminder"}
             </p>
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex shrink-0 items-center gap-1.5">
               <Badge
                 variant="outline"
-                className={cn(
-                  "gap-1 font-normal text-[10px] h-5",
-                  status.className,
-                )}
+                className={cn("h-5 gap-1 font-normal text-[10px]", status.className)}
               >
                 <StatusIcon className="size-3" />
                 {reminder.status}
@@ -135,7 +132,7 @@ export default function ReminderCard({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/50 px-2 py-1 text-muted-foreground">
                   <CalendarClock className="size-3" />
                   {countdown}
                 </span>
@@ -145,10 +142,10 @@ export default function ReminderCard({
             <span aria-hidden="true" className="text-muted-foreground/40">
               ·
             </span>
-            <Badge variant="secondary" className="gap-1 font-normal">
-              <EntityIcon className="size-3" />
-              {reminder.entityType}
-            </Badge>
+              <Badge variant="secondary" className="gap-1 font-normal">
+                <EntityIcon className="size-3" />
+                {reminder.entityType}
+              </Badge>
 
 
             {reminder.isRecurring ? (

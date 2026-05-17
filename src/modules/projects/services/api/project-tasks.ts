@@ -9,7 +9,7 @@ import {
 } from "@/modules/projects/types/project-tasks";
 import { castProjectTaskToFrontend } from "@/modules/projects/types/cast-project-task";
 
-interface Params {
+export interface ProjectTasksParams {
   projectId: string;
   status?: string;
   priority?: string;
@@ -17,7 +17,7 @@ interface Params {
   assigneeId?: string;
   sprintId?: string;
   milestoneId?: string;
-  epicId?: string;
+  epicId?: string | null;
   dueDateFrom?: string;
   dueDateTo?: string;
   isFavorite?: boolean;
@@ -33,7 +33,7 @@ export interface ProjectTasksList {
   pagination: MyTasksList["pagination"];
 }
 
-function buildQuery(params: Params): string {
+function buildQuery(params: ProjectTasksParams): string {
   const query = new URLSearchParams();
   if (params.status)       query.append("status", params.status);
   if (params.priority)     query.append("priority", params.priority);
@@ -41,7 +41,7 @@ function buildQuery(params: Params): string {
   if (params.assigneeId)   query.append("assigneeId", params.assigneeId);
   if (params.sprintId)     query.append("sprintId", params.sprintId);
   if (params.milestoneId)  query.append("milestoneId", params.milestoneId);
-  if (params.epicId)       query.append("epicId", params.epicId);
+  if (params.epicId !== undefined) query.append("epicId", params.epicId ?? "null");
   if (params.dueDateFrom)  query.append("dueDateFrom", params.dueDateFrom);
   if (params.dueDateTo)    query.append("dueDateTo", params.dueDateTo);
   if (typeof params.isFavorite === "boolean") query.append("isFavorite", String(params.isFavorite));
@@ -59,7 +59,7 @@ function buildQuery(params: Params): string {
  * Errors are propagated so React Query can show error UI.
  */
 export async function retrieveProjectTasksPaginated(
-  params: Params,
+  params: ProjectTasksParams,
 ): Promise<ProjectTasksList> {
   const { access } = extractJWTokens();
   const headers = { Authorization: `Bearer ${access}` };
@@ -97,7 +97,7 @@ export async function retrieveProjectTasksPaginated(
  * callers should prefer `retrieveProjectTasksPaginated`.
  */
 export default async function retrieveProjectTasks(
-  params: Params,
+  params: ProjectTasksParams,
 ): Promise<ProjectTaskType[]> {
   const result = await retrieveProjectTasksPaginated({
     ...params,

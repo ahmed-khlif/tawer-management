@@ -21,6 +21,7 @@ import {
   Bell,
   Send,
   Mail,
+  Users,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -80,6 +81,13 @@ import useCopy from "@/hooks/use-copy";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  userRoleBadgeClass,
+  userRoleDotClass,
+  userRoleStyle,
+} from "@/modules/projects/utils/badges/user-role-badges";
+import { EmptyState } from "@/modules/projects/components/shared/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function UsersList() {
   const t = useTranslations("modules.users");
@@ -357,22 +365,42 @@ export default function UsersList() {
         const [mainRole, ...otherRoles] = labeledRoles;
         return (
           <div className="flex items-center gap-2">
-            <Badge variant="success" className="capitalize">
-              {mainRole?.label || ""}
-            </Badge>
+            {mainRole ? (
+              <Badge
+                variant="outline"
+                className={userRoleBadgeClass("max-w-[220px] gap-1.5 capitalize")}
+                style={userRoleStyle(mainRole.value)}
+              >
+                <span className={userRoleDotClass()} />
+                <span className="truncate">{mainRole.label}</span>
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                No role
+              </Badge>
+            )}
 
             {otherRoles.length > 0 && (
               <HoverCard>
                 <HoverCardTrigger asChild>
-                  <Badge variant="outline" className="cursor-pointer">
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer border-border/70 bg-muted/50 text-foreground"
+                  >
                     {t("table.more", { count: otherRoles.length })}
                   </Badge>
                 </HoverCardTrigger>
 
-                <HoverCardContent className="w-fit">
+                <HoverCardContent className="w-fit max-w-[420px]">
                   <div className="flex max-w-[500px] flex-wrap gap-2 overflow-x-auto">
                     {otherRoles.map((role) => (
-                      <Badge key={role.value} variant="secondary" className="capitalize">
+                      <Badge
+                        key={role.value}
+                        variant="outline"
+                        className={userRoleBadgeClass("gap-1.5 capitalize")}
+                        style={userRoleStyle(role.value)}
+                      >
+                        <span className={userRoleDotClass()} />
                         {role.label}
                       </Badge>
                     ))}
@@ -536,7 +564,7 @@ export default function UsersList() {
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-card/90 p-3 shadow-sm">
         <div className="flex gap-2">
           <Select value={searchBy} onValueChange={setSearchBy}>
             <SelectTrigger className="w-52 lg:w-auto">
@@ -608,7 +636,7 @@ export default function UsersList() {
         </div>
       </div>
 
-      <div className="rounded-lg border">
+      <div className="rounded-xl border border-border/70 bg-card/95 shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -628,8 +656,12 @@ export default function UsersList() {
           <TableBody>
             {usersAreLoading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {t("table.loading")}
+                <TableCell colSpan={columns.length} className="p-6">
+                  <div className="space-y-3">
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Skeleton key={index} className="h-12 w-full" />
+                    ))}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : table.getRowModel().rows?.length ? (
@@ -644,15 +676,26 @@ export default function UsersList() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {t("table.noResults")}
+                <TableCell colSpan={columns.length} className="p-6">
+                  <EmptyState
+                    compact
+                    icon={Users}
+                    message={t("table.noResults")}
+                    description="No users matched the current search or filters. Try broadening the directory view."
+                    className="py-4"
+                    action={
+                      user && hasPermissions(user.roles, "usersManagement", "add") ? (
+                        <UploadUserDialog />
+                      ) : null
+                    }
+                  />
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-      <div className="flex items-center justify-end space-x-2">
+      <div className="flex items-center justify-end space-x-2 rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
         <div className="text-muted-foreground flex-1 text-sm">
           {paginationContent.rich("selected", {
             page: page,

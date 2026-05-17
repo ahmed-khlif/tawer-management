@@ -12,17 +12,23 @@ import {
   UpdateProjectPayload,
   ProjectContentPayload,
 } from "../../types/projects";
+import type { ProjectTemplatePreset } from "../../types/project-template-presets";
 
-function buildDefaults(project?: ProjectType | null): ProjectFormValues {
+function buildDefaults(
+  project?: ProjectType | null,
+  templatePreset?: ProjectTemplatePreset | null,
+): ProjectFormValues {
   const start = new Date(); start.setMinutes(0, 0, 0);
   const end = new Date(start); end.setDate(end.getDate() + 7);
+  const template = !project ? templatePreset : null;
+
   return {
-    name: project?.name ?? "",
-    description: project?.description ?? "",
-    details: project?.contents?.[0]?.details ?? "",
+    name: project?.name ?? template?.defaultName ?? "",
+    description: project?.description ?? template?.defaultDescription ?? "",
+    details: project?.contents?.[0]?.details ?? template?.defaultDetails ?? "",
     language: project?.contents?.[0]?.language ?? undefined,
-    businessUnit: project?.businessUnit ?? "TawerDev",
-    projectType: project?.projectType ?? "AGILE",
+    businessUnit: project?.businessUnit ?? template?.businessUnit ?? "TawerDev",
+    projectType: project?.projectType ?? template?.projectType ?? "AGILE",
     status: project?.status ?? "Pending",
     startDate: project?.startTime ? new Date(project.startTime).toISOString() : start.toISOString(),
     endDate: project?.endTime ? new Date(project.endTime).toISOString() : end.toISOString(),
@@ -38,10 +44,11 @@ function buildDefaults(project?: ProjectType | null): ProjectFormValues {
 
 interface Params {
   project?: ProjectType | null;
+  templatePreset?: ProjectTemplatePreset | null;
   onSuccess?: (aiResponse?: CreatedProjectAiResponse) => void;
 }
 
-export default function useProjectUpload({ project, onSuccess }: Params) {
+export default function useProjectUpload({ project, templatePreset, onSuccess }: Params) {
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState("");
@@ -49,14 +56,14 @@ export default function useProjectUpload({ project, onSuccess }: Params) {
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
-    defaultValues: buildDefaults(project),
+    defaultValues: buildDefaults(project, templatePreset),
   });
 
   // Re-sync form whenever the project prop changes (sheet opens for a different project)
   useEffect(() => {
-    form.reset(buildDefaults(project));
+    form.reset(buildDefaults(project, templatePreset));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [project?.id]);
+  }, [project?.id, templatePreset?.id]);
 
   async function onSubmit(data: ProjectFormValues) {
     setIsPending(true);

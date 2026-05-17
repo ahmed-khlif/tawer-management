@@ -17,6 +17,7 @@ export const getEventFormSchema = ({ t }: Params) =>
       location: z.string().optional(),
 
       participantsId: z.array(z.string()).optional(),
+      projectId: z.string().optional(),
       allUsers: z.boolean().default(false),
 
       startTime: z.string().min(1, t("startTime.isRequired")),

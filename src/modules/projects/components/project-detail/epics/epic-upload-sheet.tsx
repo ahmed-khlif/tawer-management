@@ -1,11 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Sparkles } from "lucide-react";
+import * as React from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Form,
   FormControl,
@@ -15,19 +15,29 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import TimeInput from "@/components/time-input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import useEpicUpload from "@/modules/projects/hooks/epics/use-epic-upload";
 import useProject from "@/modules/projects/hooks/projects/use-project";
+import useProjectSprints from "@/modules/projects/hooks/sprints/use-project-sprints";
 import { Epic } from "@/modules/projects/types/project-epics";
-import { resolveRiskBadgeClass } from "@/modules/projects/utils/badges/project-task-badges";
 import {
   createEpicSchema,
   CreateEpicSchema,
 } from "@/modules/projects/validation/epic.schema";
 import { TaskSelector } from "@/modules/projects/components/shared/task-selector";
+import PmAiDescriptionAssist from "@/modules/projects/components/shared/pm-ai-description-assist";
+import { previewEpicAi } from "@/modules/projects/services/api/project-ai-preview";
+import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
+import type { EpicAiPreviewResult } from "@/modules/projects/types/project-ai-preview";
 
 interface EpicUploadSheetProps {
   projectId: string;
@@ -36,7 +46,6 @@ interface EpicUploadSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** Full ISO string for TimeInput (same storage as project/sprint forms). */
 const toFormIso = (value?: string | null) =>
   value ? new Date(value).toISOString() : "";
 
@@ -54,9 +63,11 @@ export default function EpicUploadSheet({
   open,
   onOpenChange,
 }: EpicUploadSheetProps) {
-  const { createEpic, updateEpic, aiResponse, clearAiResponse } = useEpicUpload(projectId);
+  const { createEpic, updateEpic, clearAiResponse } = useEpicUpload(projectId);
   const { project } = useProject(projectId);
+  const { sprints } = useProjectSprints(projectId, { enabled: open });
   const isEditing = !!epic;
+  const [preview, setPreview] = React.useState<EpicAiPreviewResult | null>(null);
 
   const form = useForm<CreateEpicSchema>({
     resolver: zodResolver(createEpicSchema),
@@ -64,6 +75,7 @@ export default function EpicUploadSheet({
       name: "",
       description: "",
       color: "#2563eb",
+      sprintId: "",
       startDate: "",
       endDate: "",
       aiSuggestTimeline: false,
@@ -76,6 +88,7 @@ export default function EpicUploadSheet({
       name: epic?.name ?? "",
       description: epic?.description ?? "",
       color: epic?.color ?? "#2563eb",
+      sprintId: epic?.sprintId ?? "",
       startDate: toFormIso(epic?.startDate ?? null),
       endDate: toFormIso(epic?.endDate ?? null),
       aiSuggestTimeline: false,
@@ -83,39 +96,69 @@ export default function EpicUploadSheet({
     });
   }, [epic, form]);
 
+  const watchedName = form.watch("name");
+  const watchedDescription = form.watch("description");
+  const watchedColor = form.watch("color");
+  const watchedSprintId = form.watch("sprintId");
+  const watchedStartDate = form.watch("startDate");
+  const watchedEndDate = form.watch("endDate");
+  const watchedTaskIds = form.watch("taskIds");
+  const canSuggestTimeline = !!watchedName?.trim() && !!watchedSprintId;
+
+  const lastSprintIdRef = React.useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!open) return;
+    if (lastSprintIdRef.current === undefined) {
+      lastSprintIdRef.current = watchedSprintId || undefined;
+      return;
+    }
+
+    if (lastSprintIdRef.current !== (watchedSprintId || undefined)) {
+      form.setValue("taskIds", [], { shouldDirty: true });
+      lastSprintIdRef.current = watchedSprintId || undefined;
+    }
+  }, [watchedSprintId, open, form]);
+
   const handleSubmit = form.handleSubmit(async (values) => {
     const payload = {
       name: values.name,
       description: values.description || undefined,
       color: values.color || undefined,
+      sprintId: values.sprintId,
       startDate: toIso(values.startDate),
       endDate: toIso(values.endDate),
       aiSuggestTimeline: values.aiSuggestTimeline,
       taskIds: values.taskIds,
     };
 
-    let result: Epic;
     if (isEditing && epic) {
-      result = await updateEpic.mutateAsync({ epicId: epic.id, data: payload });
+      await updateEpic.mutateAsync({ epicId: epic.id, data: payload });
     } else {
-      result = await createEpic.mutateAsync(payload);
+      await createEpic.mutateAsync(payload);
     }
 
-    const hasAi = !!(
-      result?.aiRiskLevel ||
-      (result?.aiRecommendations && result.aiRecommendations.length > 0) ||
-      result?.aiTimelineSuggestion
-    );
-
-    if (!values.aiSuggestTimeline || !hasAi) {
-      onOpenChange(false);
-    }
+    onOpenChange(false);
   });
 
   const handleClose = () => {
     clearAiResponse();
+    setPreview(null);
     onOpenChange(false);
   };
+
+  const previewMutation = useMutation({
+    mutationFn: () =>
+      previewEpicAi(projectId, {
+        name: watchedName.trim(),
+        description: watchedDescription || undefined,
+        color: watchedColor || undefined,
+        startDate: watchedStartDate || undefined,
+        endDate: watchedEndDate || undefined,
+        sprintId: watchedSprintId,
+        taskIds: watchedTaskIds?.length ? watchedTaskIds : undefined,
+      }),
+    onSuccess: (response) => setPreview(response),
+  });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -142,6 +185,46 @@ export default function EpicUploadSheet({
 
             <FormField
               control={form.control}
+              name="sprintId"
+              render={({ field }) => {
+                const activeSprintId = sprints.find(
+                  (sprint) => sprint.status === "Running",
+                )?.id;
+
+                return (
+                  <FormItem>
+                    <FormLabel>Sprint</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose the sprint that owns this epic" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {sprints.map((sprint) => (
+                          <SelectItem key={sprint.id} value={sprint.id}>
+                            <div className="flex min-w-0 flex-col">
+                              <span className="truncate font-medium">
+                                {sprint.name}
+                                {sprint.id === activeSprintId ? " • Active" : ""}
+                              </span>
+                              <span className="truncate text-xs text-muted-foreground">
+                                {sprint.startDate.toLocaleDateString()} -{" "}
+                                {sprint.endDate.toLocaleDateString()}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
+            />
+
+            <FormField
+              control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
@@ -149,6 +232,15 @@ export default function EpicUploadSheet({
                   <FormControl>
                     <Textarea rows={5} placeholder="What does this epic cover?" {...field} />
                   </FormControl>
+                  <PmAiDescriptionAssist
+                    entityType="EPIC"
+                    projectId={projectId}
+                    title={form.watch("name")}
+                    description={field.value}
+                    onApply={(value) =>
+                      form.setValue("description", value, { shouldDirty: true })
+                    }
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -173,7 +265,7 @@ export default function EpicUploadSheet({
               dateLabel="Start date"
               timeLabel="Time"
               allowEmpty
-              emptyPlaceholder="Optional — start date"
+              emptyPlaceholder="Optional - start date"
               minDate={project?.startTime}
               maxDate={project?.endTime}
             />
@@ -182,7 +274,7 @@ export default function EpicUploadSheet({
               dateLabel="End date"
               timeLabel="Time"
               allowEmpty
-              emptyPlaceholder="Optional — end date"
+              emptyPlaceholder="Optional - end date"
               minDate={project?.startTime}
               maxDate={project?.endTime}
             />
@@ -198,86 +290,118 @@ export default function EpicUploadSheet({
                       projectId={projectId}
                       selectedTaskIds={field.value || []}
                       onChange={field.onChange}
-                      placeholder="Link existing tasks to this epic..."
+                      sprintId={watchedSprintId || undefined}
+                      currentEpicId={epic?.id}
+                      disabled={!watchedSprintId}
+                      placeholder="Link tasks from this sprint..."
                     />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Only tasks from the selected sprint can be linked to this epic.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-
-            <FormField
-              control={form.control}
-              name="aiSuggestTimeline"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-md border bg-muted/40 p-4">
-                  <div>
-                    <FormLabel className="flex items-center gap-2 text-sm font-medium">
-                      <Sparkles className="size-4 text-primary" />
-                      Suggest timeline & risk
-                    </FormLabel>
+            <PmAiAssistPanel
+              title="AI Epic Assist"
+              description="Use AI to shape epic dates that better fit the selected sprint window."
+              actions={[
+                {
+                  id: "epic-timeline",
+                  label: "Suggest timeline",
+                  onClick: () => previewMutation.mutate(),
+                  disabled: !canSuggestTimeline,
+                  hint: "Choose a sprint and add an epic name first.",
+                  loading: previewMutation.isPending,
+                  priority: !watchedEndDate,
+                },
+              ]}
+            >
+              {preview ? (
+                <PmAiSuggestionCard
+                  title="Timeline suggestion"
+                  badge={preview.aiRiskLevel}
+                  onDismiss={() => setPreview(null)}
+                  footer={
+                    <>
+                      {preview.aiTimelineSuggestion?.suggestedStartDate ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            form.setValue(
+                              "startDate",
+                              preview.aiTimelineSuggestion?.suggestedStartDate || "",
+                              { shouldDirty: true },
+                            )
+                          }
+                        >
+                          Apply start
+                        </Button>
+                      ) : null}
+                      {preview.aiTimelineSuggestion?.suggestedEndDate ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            form.setValue(
+                              "startDate",
+                              preview.aiTimelineSuggestion?.suggestedStartDate || "",
+                              { shouldDirty: true },
+                            );
+                            form.setValue(
+                              "endDate",
+                              preview.aiTimelineSuggestion?.suggestedEndDate || "",
+                              { shouldDirty: true },
+                            );
+                          }}
+                        >
+                          Apply timeline
+                        </Button>
+                      ) : null}
+                    </>
+                  }
+                >
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {preview.aiTimelineSuggestion?.suggestedStartDate ? (
+                      <p className="text-xs text-muted-foreground">
+                        Suggested start:{" "}
+                        <span className="font-medium text-foreground">
+                          {new Date(
+                            preview.aiTimelineSuggestion.suggestedStartDate,
+                          ).toLocaleString()}
+                        </span>
+                      </p>
+                    ) : null}
+                    {preview.aiTimelineSuggestion?.suggestedEndDate ? (
+                      <p className="text-xs text-muted-foreground">
+                        Suggested end:{" "}
+                        <span className="font-medium text-foreground">
+                          {new Date(
+                            preview.aiTimelineSuggestion.suggestedEndDate,
+                          ).toLocaleString()}
+                        </span>
+                      </p>
+                    ) : null}
+                  </div>
+                  {preview.aiTimelineSuggestion?.riskNote ? (
                     <p className="text-xs text-muted-foreground">
-                      Use AI to detect timeline conflicts, anomaly-based risks, and recommend dates that fit the project window.
+                      {preview.aiTimelineSuggestion.riskNote}
                     </p>
-                  </div>
-                  <FormControl>
-                    <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {aiResponse && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-4 space-y-2 text-sm">
-                <div className="flex items-center gap-2 font-medium">
-                  <Sparkles className="size-4 text-primary" />
-                  AI insights for this epic
-                </div>
-                {aiResponse.aiRiskLevel && (
-                  <div>
-                    <span className="text-muted-foreground">Risk level: </span>
-                    <Badge
-                      variant="outline"
-                      className={resolveRiskBadgeClass(aiResponse.aiRiskLevel)}
-                    >
-                      {aiResponse.aiRiskLevel}
-                    </Badge>
-                  </div>
-                )}
-                {aiResponse.aiTimelineSuggestion && (
-                  <div className="space-y-1">
-                    {aiResponse.aiTimelineSuggestion.suggestedStartDate && (
-                      <p>
-                        <span className="text-muted-foreground">Suggested start: </span>
-                        {new Date(aiResponse.aiTimelineSuggestion.suggestedStartDate).toLocaleDateString()}
-                      </p>
-                    )}
-                    {aiResponse.aiTimelineSuggestion.suggestedEndDate && (
-                      <p>
-                        <span className="text-muted-foreground">Suggested end: </span>
-                        {new Date(aiResponse.aiTimelineSuggestion.suggestedEndDate).toLocaleDateString()}
-                      </p>
-                    )}
-                    {aiResponse.aiTimelineSuggestion.riskNote && (
-                      <p className="text-xs text-muted-foreground">{aiResponse.aiTimelineSuggestion.riskNote}</p>
-                    )}
-                  </div>
-                )}
-                {aiResponse.aiRecommendations?.length ? (
-                  <ul className="list-disc pl-5 text-muted-foreground">
-                    {aiResponse.aiRecommendations.map((rec) => (
-                      <li key={rec}>{rec}</li>
-                    ))}
-                  </ul>
-                ) : null}
-                <div className="flex justify-end pt-1">
-                  <Button size="sm" variant="outline" type="button" onClick={handleClose}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
+                  ) : null}
+                  {preview.aiRecommendations?.length ? (
+                    <ul className="list-disc pl-4 text-xs text-muted-foreground">
+                      {preview.aiRecommendations.map((rec) => (
+                        <li key={rec}>{rec}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </PmAiSuggestionCard>
+              ) : null}
+            </PmAiAssistPanel>
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="secondary" onClick={handleClose}>

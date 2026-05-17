@@ -127,12 +127,33 @@ export function TeamPerformanceChart({
             </BarChart>
           </ChartContainer>
         ) : (
-          <div className="rounded-2xl border border-border/60 bg-background/70 p-6">
-            <EmptyState
-              icon={Users}
-              message="No sprint load to compare yet"
-              description="Capacity and committed points will appear here once the selected members have active sprint planning data."
-            />
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border/60 bg-background/70 p-6">
+              <EmptyState
+                icon={Users}
+                message="No sprint load to compare yet"
+                description="Capacity and committed points will appear here once the selected members have active sprint planning data."
+                className="min-h-[220px] xl:min-h-[260px]"
+              />
+            </div>
+            <div className="grid gap-3 lg:grid-cols-2">
+              <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  Why this is empty
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  The current member slice does not have active sprint commitments or planned capacity in the selected window.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  Best next step
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Add sprint capacity, assign sprint tasks, or widen the team filter to compare actual load against the planning baseline.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

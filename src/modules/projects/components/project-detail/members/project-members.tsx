@@ -2,24 +2,18 @@
 import React from "react";
 import {
   Plus,
-  Mail,
   Users,
   UserCheck,
   Send,
   Crown,
-  LayoutGrid,
-  List as ListIcon,
-  Search,
-  Filter,
   ShieldCheck,
   Clock,
   CheckCircle2,
   AlertCircle,
   XCircle,
-  MoreHorizontal,
   Activity,
 } from "lucide-react";
-import { FilterMenu, type FilterMenuCategory } from "../../shared/filter-menu";
+import { FilterMenu } from "../../shared/filter-menu";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -37,7 +31,6 @@ import useProjectMembers from "../../../hooks/members/use-project-members";
 import useProjectInvitations from "../../../hooks/members/use-project-invitations";
 import useProjectPermissions from "../../../hooks/permissions/use-project-permissions";
 import useProjectTasks from "../../../hooks/tasks/use-project-tasks";
-import { cn } from "@/lib/utils";
 
 interface Props {
   project: ProjectType;
@@ -236,9 +229,15 @@ export default function ProjectMembers({ project }: Props) {
       <Toolbar
         search={search}
         onSearchChange={setSearch}
-        searchPlaceholder={t("membersList.searchPlaceholder", {
-          defaultValue: "Search members...",
-        })}
+        searchPlaceholder={
+          activeTab === "invitations"
+            ? t("invitationsList.searchPlaceholder", {
+                defaultValue: "Search invitations...",
+              })
+            : t("membersList.searchPlaceholder", {
+                defaultValue: "Search members...",
+              })
+        }
         viewMode={viewMode as any}
         onViewModeChange={(mode) => setViewMode(mode as any)}
         tabs={
@@ -371,13 +370,14 @@ export default function ProjectMembers({ project }: Props) {
               value="invitations"
               className="mt-0 focus-visible:outline-none"
             >
-              <div className="max-w-4xl mx-auto">
+              <div className="mx-auto w-full max-w-6xl">
                 <InvitationsListCard
                   invitations={filteredInvitations}
                   onResend={resendInvitation}
                   onRevoke={setInviteToRevoke}
                   isPending={invitePending}
                   canManage={canInviteMembers || canManageMembers}
+                  viewMode={viewMode}
                 />
               </div>
             </TabsContent>

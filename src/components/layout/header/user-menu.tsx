@@ -19,6 +19,8 @@ import { logout } from "@/modules/auth/utils/log-out";
 import { useRouter } from "next/navigation";
 import UserProfileImage from "@/modules/users/components/profile-image";
 import useAttendance from "@/modules/tracking/hook/work-sessions/use-attendance";
+import useWorkSession from "@/modules/tracking/hook/work-sessions/use-work-session";
+import { useViewerModeStore } from "@/modules/tracking/store/viewer-mode-store";
 
 export default function UserMenu() {
   const t = useTranslations("shared.header.userMenu");
@@ -26,6 +28,11 @@ export default function UserMenu() {
 
   const { user, isLoading } = useUser();
   const { checkOut } = useAttendance();
+  const { workSession, isLoading: workSessionIsLoading } = useWorkSession();
+  const { viewerModeIsActive } = useViewerModeStore((store) => store);
+  const effectiveIsCheckedIn = workSessionIsLoading
+    ? user?.isOnline ?? false
+    : !viewerModeIsActive && workSession.status === "in";
 
   const onClickLogout = async () => {
     await checkOut();
@@ -38,7 +45,12 @@ export default function UserMenu() {
       <DropdownMenuTrigger asChild>
         {user && (
           <div className="cursor-pointer">
-            <UserProfileImage name={user.name} image={user.image} isOnline size="sm" />
+            <UserProfileImage
+              name={user.name}
+              image={user.image}
+              isOnline={effectiveIsCheckedIn}
+              size="sm"
+            />
           </div>
         )}
       </DropdownMenuTrigger>

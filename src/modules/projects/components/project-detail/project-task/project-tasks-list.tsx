@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Plus } from "lucide-react";
+import { format } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,6 +20,7 @@ import useProjectPermissions from "../../../hooks/permissions/use-project-permis
 import useTaskStatuses from "../../../hooks/tasks/use-task-statuses";
 import useProjectKanban from "../../../hooks/tasks/use-project-kanban";
 import useProjectTask from "../../../hooks/tasks/use-project-task";
+import useProjectSprints from "../../../hooks/sprints/use-project-sprints";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import { useProjectTasksStore } from "@/modules/projects/store/project-tasks";
 import Error500 from "@/components/error/500";
@@ -44,6 +46,7 @@ interface Props {
 export default function ProjectTasksList({ project }: Props) {
   const tTasks = useTranslations("modules.projects.tasks");
   const { viewMode } = useProjectTasksStore();
+  const kanbanFullscreenRef = React.useRef<HTMLDivElement | null>(null);
 
   const {
     tasks, tasksAreLoading, tasksError,
@@ -54,6 +57,9 @@ export default function ProjectTasksList({ project }: Props) {
   const { list: customStatusesQuery, createStatus, deleteStatus } = useTaskStatuses(project.id);
   const { moveTask: moveKanbanTask } = useProjectKanban(project.id);
   const { user } = useCurrentUser();
+  const { sprints } = useProjectSprints(project.id, {
+    enabled: project.projectType === "AGILE",
+  });
 
   const [search, setSearch] = searchState;
   const [status, setStatus] = statusState;
@@ -69,6 +75,15 @@ export default function ProjectTasksList({ project }: Props) {
     setAssigneeId(mineOnly ? undefined : user.id);
   }, [user?.id, mineOnly, setAssigneeId]);
 
+  const activeSprint = React.useMemo(() => {
+    if (project.projectType !== "AGILE") return null;
+    return (
+      sprints.find((sprint) => sprint.status === "Running") ??
+      sprints.find((sprint) => sprint.status === "Pending") ??
+      null
+    );
+  }, [project.projectType, sprints]);
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedTaskId = searchParams?.get("taskId");
@@ -79,20 +94,32 @@ export default function ProjectTasksList({ project }: Props) {
   const [selectedTask, setSelectedTask] = React.useState<ProjectTaskType | null>(null);
   const [duplicateTemplate, setDuplicateTemplate] = React.useState<Partial<ProjectTaskType> | null>(null);
   const [feedbackTask, setFeedbackTask] = React.useState<ProjectTaskType | null>(null);
+  const [groupBy, setGroupBy] = React.useState<"none" | "assignee" | "epic">(
+    "none",
+  );
+  const [isKanbanFullscreen, setIsKanbanFullscreen] = React.useState(false);
   const requestedTaskQuery = useProjectTask(project.id, requestedTaskId, {
     enabled: !!requestedTaskId,
   });
 
   React.useEffect(() => {
+    const onFullscreenChange = () => {
+      const activeElement = document.fullscreenElement;
+      setIsKanbanFullscreen(activeElement === kanbanFullscreenRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  React.useEffect(() => {
     const newTaskFlag = searchParams?.get("newTask");
     if (newTaskFlag !== "1") return;
     if (isAddSheetOpen) return;
-    const epicIdParam = searchParams?.get("epicId") || undefined;
     const sprintIdParam = searchParams?.get("sprintId") || undefined;
     const milestoneIdParam = searchParams?.get("milestoneId") || undefined;
     setSelectedTask(null);
     setDuplicateTemplate({
-      ...(epicIdParam ? { epicId: epicIdParam } : {}),
       ...(sprintIdParam ? { sprintId: sprintIdParam } : {}),
       ...(milestoneIdParam ? { milestoneId: milestoneIdParam } : {}),
     });
@@ -273,6 +300,14 @@ export default function ProjectTasksList({ project }: Props) {
     return map;
   }, [orderedStatuses]);
 
+  const renderStatusColumnOrder = React.useMemo(() => {
+    const keys = [...orderedStatusNames];
+    if (!keys.includes(NO_STATUS_KEY)) {
+      keys.push(NO_STATUS_KEY);
+    }
+    return keys;
+  }, [orderedStatusNames]);
+
   const kanbanColumns = React.useMemo(() => {
     const columns: Record<string, ProjectTaskType[]> = {};
     for (const name of orderedStatusNames) columns[name] = [];
@@ -301,8 +336,213 @@ export default function ProjectTasksList({ project }: Props) {
     return columns;
   }, [tasks, orderedStatusNames, statusNameByLower]);
 
+  const activeSprintTasks = React.useMemo(() => {
+    if (!activeSprint) return [];
+    return tasks.filter((task) => task.sprintId === activeSprint.id);
+  }, [activeSprint, tasks]);
+
+  const activeSprintProgress = React.useMemo(() => {
+    if (!activeSprint) return null;
+    if (activeSprintTasks.length > 0) {
+      const completed = activeSprintTasks.filter((task) => task.status === "DONE").length;
+      return {
+        total: activeSprintTasks.length,
+        completed,
+        percent: Math.round((completed / Math.max(activeSprintTasks.length, 1)) * 100),
+      };
+    }
+
+    if (activeSprint.tasks?.length) {
+      const completed = activeSprint.tasks.filter((task) => task.status === "DONE").length;
+      return {
+        total: activeSprint.tasks.length,
+        completed,
+        percent: Math.round((completed / Math.max(activeSprint.tasks.length, 1)) * 100),
+      };
+    }
+
+    return {
+      total: 0,
+      completed: 0,
+      percent: 0,
+    };
+  }, [activeSprint, activeSprintTasks]);
+
+  const activeSprintMembers = React.useMemo(() => {
+    if (!activeSprint) return [];
+
+    const ids = Array.from(
+      new Set(activeSprintTasks.map((task) => task.assigneeId).filter(Boolean)),
+    ) as string[];
+
+    const resolved = ids
+      .map((userId) => project.members?.find((member) => member.userId === userId))
+      .filter(Boolean);
+
+    if (resolved.length > 0) {
+      return resolved.slice(0, 5);
+    }
+
+    return (project.members ?? []).slice(0, 5);
+  }, [activeSprint, activeSprintTasks, project.members]);
+
+  const activeSprintSummary = React.useMemo(() => {
+    if (!activeSprint) return null;
+    return {
+      id: activeSprint.id,
+      name: activeSprint.name,
+      status: activeSprint.status,
+      dateLabel: `${format(activeSprint.startDate, "MMM d")} - ${format(activeSprint.endDate, "MMM d")}`,
+      progressPercent: activeSprintProgress?.percent ?? 0,
+      completedTasks: activeSprintProgress?.completed ?? 0,
+      totalTasks: activeSprintProgress?.total ?? 0,
+      teamMembers: activeSprintMembers
+        .filter(
+          (member): member is NonNullable<(typeof activeSprintMembers)[number]> =>
+            !!member,
+        )
+        .map((member) => ({
+          id: member.id,
+          name: member.memberName || member.user?.name || "Team member",
+          image: member.user?.image,
+        })),
+    };
+  }, [activeSprint, activeSprintMembers, activeSprintProgress]);
+
+  const assigneeSwimlaneModel = React.useMemo(() => {
+    const laneMap = new Map<
+      string,
+      { id: string; title: string; subtitle?: string; color?: string | null }
+    >();
+
+    for (const member of project.members ?? []) {
+      if (!member.userId) continue;
+      laneMap.set(member.userId, {
+        id: member.userId,
+        title: member.memberName || member.user?.name || "Team member",
+      });
+    }
+
+    for (const task of tasks) {
+      if (!task.assigneeId) continue;
+      if (!laneMap.has(task.assigneeId)) {
+        laneMap.set(task.assigneeId, {
+          id: task.assigneeId,
+          title: task.assignee?.name || task.assigneeId,
+        });
+      }
+    }
+
+    const lanes = [
+      ...Array.from(laneMap.values()),
+      { id: "unassigned", title: "Unassigned" },
+    ];
+
+    const columns: Record<string, ProjectTaskType[]> = {};
+    for (const lane of lanes) {
+      for (const statusKey of renderStatusColumnOrder) {
+        columns[`${lane.id}::${statusKey}`] = [];
+      }
+    }
+
+    for (const task of tasks) {
+      const laneId = task.assigneeId ?? "unassigned";
+      const rawStatus = (task.status ?? "").trim();
+      const lower = rawStatus.toLowerCase();
+      const normalized = rawStatus.toUpperCase().replace(/\s+/g, "_");
+      const statusKey = statusNameByLower.get(lower) ?? (columns[`${laneId}::${normalized}`] ? normalized : NO_STATUS_KEY);
+      const columnKey = `${laneId}::${statusKey}`;
+      if (!columns[columnKey]) {
+        columns[columnKey] = [];
+      }
+      columns[columnKey].push(task);
+    }
+
+    return {
+      lanes: lanes.map((lane) => ({
+        ...lane,
+        taskCount: tasks.filter((task) => (task.assigneeId ?? "unassigned") === lane.id)
+          .length,
+        columns: renderStatusColumnOrder.map((statusKey) => ({
+          key: `${lane.id}::${statusKey}`,
+          title: columnTitles[statusKey] || statusKey,
+        })),
+      })),
+      columns,
+    };
+  }, [project.members, tasks, renderStatusColumnOrder, statusNameByLower, columnTitles]);
+
+  const epicSwimlaneModel = React.useMemo(() => {
+    const laneMap = new Map<
+      string,
+      { id: string; title: string; color?: string | null; subtitle?: string }
+    >();
+
+    const projectEpics = (project as { epics?: Array<{ id: string; name: string; color?: string | null }> }).epics ?? [];
+    for (const epic of projectEpics) {
+      laneMap.set(epic.id, {
+        id: epic.id,
+        title: epic.name,
+        color: epic.color ?? null,
+      });
+    }
+
+    for (const task of tasks) {
+      if (!task.epic) continue;
+      if (!laneMap.has(task.epic.id)) {
+        laneMap.set(task.epic.id, {
+          id: task.epic.id,
+          title: task.epic.title,
+          color: task.epic.color ?? null,
+        });
+      }
+    }
+
+    const lanes = [
+      ...Array.from(laneMap.values()),
+      { id: "no-epic", title: "No Epic", subtitle: "Standalone tasks", color: null },
+    ];
+
+    const columns: Record<string, ProjectTaskType[]> = {};
+    for (const lane of lanes) {
+      for (const statusKey of renderStatusColumnOrder) {
+        columns[`${lane.id}::${statusKey}`] = [];
+      }
+    }
+
+    for (const task of tasks) {
+      const laneId = task.epic?.id ?? "no-epic";
+      const rawStatus = (task.status ?? "").trim();
+      const lower = rawStatus.toLowerCase();
+      const normalized = rawStatus.toUpperCase().replace(/\s+/g, "_");
+      const statusKey = statusNameByLower.get(lower) ?? (columns[`${laneId}::${normalized}`] ? normalized : NO_STATUS_KEY);
+      const columnKey = `${laneId}::${statusKey}`;
+      if (!columns[columnKey]) {
+        columns[columnKey] = [];
+      }
+      columns[columnKey].push(task);
+    }
+
+    return {
+      lanes: lanes.map((lane) => ({
+        ...lane,
+        taskCount: tasks.filter((task) => (task.epic?.id ?? "no-epic") === lane.id)
+          .length,
+        columns: renderStatusColumnOrder.map((statusKey) => ({
+          key: `${lane.id}::${statusKey}`,
+          title: columnTitles[statusKey] || statusKey,
+        })),
+      })),
+      columns,
+    };
+  }, [project, tasks, renderStatusColumnOrder, statusNameByLower, columnTitles]);
+
   const kanbanInteractedRef = React.useRef(false);
   const [localKanbanColumns, setLocalKanbanColumns] = React.useState<Record<string, ProjectTaskType[]>>({});
+  const [localAssigneeSwimlaneColumns, setLocalAssigneeSwimlaneColumns] =
+    React.useState<Record<string, ProjectTaskType[]>>({});
+  const [localEpicSwimlaneColumns, setLocalEpicSwimlaneColumns] =
+    React.useState<Record<string, ProjectTaskType[]>>({});
   const dragBufferRef = React.useRef<Record<string, ProjectTaskType[]> | null>(null);
   const isDraggingKanbanRef = React.useRef(false);
 
@@ -313,10 +553,23 @@ export default function ProjectTasksList({ project }: Props) {
       prevTaskIdsRef.current = taskIds;
       kanbanInteractedRef.current = false;
       setLocalKanbanColumns(kanbanColumns);
+      setLocalAssigneeSwimlaneColumns(assigneeSwimlaneModel.columns);
+      setLocalEpicSwimlaneColumns(epicSwimlaneModel.columns);
     }
-  }, [tasks, kanbanColumns]);
+  }, [tasks, kanbanColumns, assigneeSwimlaneModel.columns, epicSwimlaneModel.columns]);
 
-  const activeKanbanColumns = kanbanInteractedRef.current ? localKanbanColumns : kanbanColumns;
+  const activeKanbanColumns =
+    groupBy === "epic"
+      ? kanbanInteractedRef.current
+        ? localEpicSwimlaneColumns
+        : epicSwimlaneModel.columns
+      : groupBy === "assignee"
+        ? kanbanInteractedRef.current
+          ? localAssigneeSwimlaneColumns
+          : assigneeSwimlaneModel.columns
+        : kanbanInteractedRef.current
+          ? localKanbanColumns
+          : kanbanColumns;
 
   // --- Handlers ---
   const handleOpenDetailSheet = (task: ProjectTaskType) => {
@@ -338,12 +591,32 @@ export default function ProjectTasksList({ project }: Props) {
       type: task.type, status: task.status, priority: task.priority,
       storyPoints: task.storyPoints, dueDate: new Date().toISOString(),
       assigneeId: task.assigneeId, milestoneId: task.milestoneId,
-      epicId: task.epicId, sprintId: task.sprintId,
+      sprintId: task.sprintId,
     });
     setSelectedTask(null);
     setIsDetailSheetOpen(false);
     setIsAddSheetOpen(true);
   };
+
+  const handleToggleKanbanFullscreen = React.useCallback(async () => {
+    const container = kanbanFullscreenRef.current;
+    if (!container || typeof document === "undefined") return;
+
+    try {
+      if (document.fullscreenElement === container) {
+        await document.exitFullscreen();
+      } else {
+        await container.requestFullscreen();
+      }
+    } catch (error) {
+      console.error("Failed to toggle fullscreen", error);
+      toast.error(
+        tTasks("toolbar.fullscreenError", {
+          defaultValue: "Fullscreen mode is not available right now.",
+        }),
+      );
+    }
+  }, [tTasks]);
 
   // Kanban drag handlers
   const handleKanbanDragStart = () => { isDraggingKanbanRef.current = true; };
@@ -353,7 +626,13 @@ export default function ProjectTasksList({ project }: Props) {
       kanbanInteractedRef.current = true;
       const next = dragBufferRef.current;
       const previous = activeKanbanColumns;
-      setLocalKanbanColumns(next);
+      if (groupBy === "epic") {
+        setLocalEpicSwimlaneColumns(next);
+      } else if (groupBy === "assignee") {
+        setLocalAssigneeSwimlaneColumns(next);
+      } else {
+        setLocalKanbanColumns(next);
+      }
       dragBufferRef.current = null;
       void detectAndPersistMoves(previous, next);
     }
@@ -363,7 +642,13 @@ export default function ProjectTasksList({ project }: Props) {
     else {
       const previous = activeKanbanColumns;
       kanbanInteractedRef.current = true;
-      setLocalKanbanColumns(newColumns);
+      if (groupBy === "epic") {
+        setLocalEpicSwimlaneColumns(newColumns);
+      } else if (groupBy === "assignee") {
+        setLocalAssigneeSwimlaneColumns(newColumns);
+      } else {
+        setLocalKanbanColumns(newColumns);
+      }
       void detectAndPersistMoves(previous, newColumns);
     }
   };
@@ -372,20 +657,46 @@ export default function ProjectTasksList({ project }: Props) {
     previous: Record<string, ProjectTaskType[]>,
     next: Record<string, ProjectTaskType[]>,
   ) => {
-    const previousLocation = new Map<string, { columnKey: string; index: number }>();
+    const parseKanbanLocation = (columnKey: string) => {
+      if (!columnKey.includes("::")) {
+        return { laneKey: null, statusKey: columnKey };
+      }
+      const [laneKey, statusKey] = columnKey.split("::");
+      return { laneKey, statusKey };
+    };
+
+    const previousLocation = new Map<
+      string,
+      { columnKey: string; index: number; laneKey: string | null; statusKey: string }
+    >();
     for (const [columnKey, columnTasks] of Object.entries(previous)) {
       columnTasks.forEach((task, index) => {
-        previousLocation.set(task.id, { columnKey, index });
+        previousLocation.set(task.id, {
+          columnKey,
+          index,
+          ...parseKanbanLocation(columnKey),
+        });
       });
     }
 
-    const moves: Array<{ taskId: string; columnKey: string; index: number }> = [];
+    const moves: Array<{
+      taskId: string;
+      columnKey: string;
+      index: number;
+      laneKey: string | null;
+      statusKey: string;
+    }> = [];
     for (const [columnKey, columnTasks] of Object.entries(next)) {
       columnTasks.forEach((task, index) => {
         const prev = previousLocation.get(task.id);
         if (!prev) return;
         if (prev.columnKey !== columnKey || prev.index !== index) {
-          moves.push({ taskId: task.id, columnKey, index });
+          moves.push({
+            taskId: task.id,
+            columnKey,
+            index,
+            ...parseKanbanLocation(columnKey),
+          });
         }
       });
     }
@@ -409,18 +720,36 @@ export default function ProjectTasksList({ project }: Props) {
 
         // Skip the synthetic "No Status" column — there's no equivalent on
         // the backend, so we leave the task's status untouched.
-        if (move.columnKey === NO_STATUS_KEY) continue;
+        if (groupBy === "assignee") {
+          const previousLane = previousLocation.get(move.taskId)?.laneKey;
+          if (previousLane !== move.laneKey) {
+            toast.error("Assignee swimlanes are view-only for lane changes.");
+            kanbanInteractedRef.current = false;
+            setLocalAssigneeSwimlaneColumns(previous);
+            return;
+          }
+        }
+
+        if (move.statusKey === NO_STATUS_KEY) continue;
 
         // The column key IS the status name now (system or custom).
         // Backend `MoveTaskInKanbanDto.status` accepts either the enum value
         // or a custom status name, so we send it directly.
+        const nextEpicId =
+          groupBy === "epic"
+            ? move.laneKey === "no-epic"
+              ? null
+              : move.laneKey
+            : undefined;
+
         await moveKanbanTask.mutateAsync({
           taskId: move.taskId,
-          status: move.columnKey,
+          status: move.statusKey,
           displayOrder: move.index,
+          epicId: nextEpicId,
         });
 
-        if (move.columnKey === "DONE") {
+        if (move.statusKey === "DONE") {
           const movedTask = tasks.find((task) => task.id === move.taskId);
           if (movedTask?.estimatedHours && movedTask.status !== "DONE") {
             completedTaskForFeedback = movedTask;
@@ -433,7 +762,13 @@ export default function ProjectTasksList({ project }: Props) {
     } catch {
       // The hook already surfaces a toast; just roll back the local state.
       kanbanInteractedRef.current = false;
-      setLocalKanbanColumns(previous);
+      if (groupBy === "epic") {
+        setLocalEpicSwimlaneColumns(previous);
+      } else if (groupBy === "assignee") {
+        setLocalAssigneeSwimlaneColumns(previous);
+      } else {
+        setLocalKanbanColumns(previous);
+      }
     }
   };
 
@@ -490,10 +825,15 @@ export default function ProjectTasksList({ project }: Props) {
             type={type} setType={setType}
             assigneeId={assigneeId} setAssigneeId={setAssigneeId}
             milestoneId={milestoneId} setMilestoneId={setMilestoneId}
-            epicId={epicId} setEpicId={setEpicId}
+            epicId={epicId ?? undefined}
+            setEpicId={(value) => setEpicId(value)}
+            groupBy={groupBy}
+            setGroupBy={setGroupBy}
             mineOnly={mineOnly}
             onToggleMineOnly={user?.id ? handleToggleMineOnly : undefined}
             onAddTask={canAddTask ? () => handleOpenUploadSheet() : undefined}
+            isKanbanFullscreen={isKanbanFullscreen}
+            onToggleKanbanFullscreen={handleToggleKanbanFullscreen}
           />
 
           {tasksAreLoading ? (
@@ -525,24 +865,43 @@ export default function ProjectTasksList({ project }: Props) {
             />
           ) : viewMode === "grid" ? (
             <TooltipProvider>
-          <ProjectTasksKanbanBoard
-            projectType={project.projectType}
-            columns={activeKanbanColumns}
-            columnTitles={columnTitles}
-            members={project.members}
-            customStatusColorByKey={customStatusColorByKey}
-            customStatusColorByName={customStatusColorByName}
-            canMoveTask={(task) => canUpdateStatusAny || (canUpdateStatusOwn && isOwnTask(task))}
-            canDuplicateTask={(task) => canAddTask}
-            canManageColumns={canManageTaskStatuses}
-            onValueChange={handleKanbanChange}
-            onDragStart={() => {}}
-            onDragEnd={() => {}}
-            onTaskClick={handleOpenDetailSheet}
-            onDuplicateTask={handleDuplicateTask}
-            onDeleteColumn={() => {}} // Not implemented for now
-            onAddColumn={() => {}} // Not implemented for now
-          />
+              <div
+                ref={kanbanFullscreenRef}
+                className={
+                  isKanbanFullscreen
+                    ? "h-full overflow-auto bg-background p-4 md:p-6"
+                    : ""
+                }
+              >
+                <ProjectTasksKanbanBoard
+                  projectType={project.projectType}
+                  groupBy={groupBy}
+                  columns={activeKanbanColumns}
+                  columnTitles={columnTitles}
+                  activeSprint={activeSprintSummary}
+                  swimlanes={
+                    groupBy === "epic"
+                      ? epicSwimlaneModel.lanes
+                      : groupBy === "assignee"
+                        ? assigneeSwimlaneModel.lanes
+                        : undefined
+                  }
+                  members={project.members}
+                  customStatusColorByKey={customStatusColorByKey}
+                  customStatusColorByName={customStatusColorByName}
+                  totalTasks={tasks.length}
+                  canMoveTask={(task) => canUpdateStatusAny || (canUpdateStatusOwn && isOwnTask(task))}
+                  canDuplicateTask={(task) => canAddTask}
+                  canManageColumns={groupBy === "none" && canManageTaskStatuses}
+                  onValueChange={handleKanbanChange}
+                  onDragStart={handleKanbanDragStart}
+                  onDragEnd={handleKanbanDragEnd}
+                  onTaskClick={handleOpenDetailSheet}
+                  onDuplicateTask={handleDuplicateTask}
+                  onDeleteColumn={handleDeleteColumn}
+                  onAddColumn={handleAddColumn}
+                />
+              </div>
             </TooltipProvider>
           ) : (
             <DndContext

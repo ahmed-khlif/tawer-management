@@ -10,6 +10,7 @@ const epicSchemaFields = z.object({
     .regex(/^#([0-9a-fA-F]{6})$/, "Use a valid hex color")
     .optional()
     .or(z.literal("")),
+  sprintId: z.string().uuid("Select a sprint for this epic"),
   startDate: nullableIsoDate,
   endDate: nullableIsoDate,
   aiSuggestTimeline: z.boolean().optional(),

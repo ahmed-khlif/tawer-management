@@ -51,5 +51,5 @@ export default async function retrieveAssignedProjectTasks(
     const q = params.search.toLowerCase();
     tasks = tasks.filter((t) => t.title.toLowerCase().includes(q) || t.key.toLowerCase().includes(q));
   }
-  return tasks.map(castProjectTaskToFrontend);
+  return tasks;
 }

@@ -5,6 +5,8 @@ import { refreshToken } from "@/modules/auth/services/refresh-token";
 import extractJWTokens from "@/modules/auth/utils/jwt/extract-tokens";
 import {
   AiProjectMetrics,
+  ImproveDescriptionDto,
+  ImproveDescriptionResult,
   PredictionOutcomeFeedbackDto,
   PredictionOutcomeFeedbackResult,
   PredictionResult,
@@ -37,6 +39,27 @@ export async function predictTaskDuration(
   } catch (error: any) {
     if (error?.response?.status === 401) {
       return (await refreshToken(() => predictTaskDuration(data))) as PredictionResult;
+    }
+    throw error;
+  }
+}
+
+export async function improveDescription(
+  data: ImproveDescriptionDto,
+): Promise<ImproveDescriptionResult> {
+  if (isMockMode()) {
+    return {
+      improvedDescription: data.description || `Clearer description for ${data.title || "this item"}.`,
+      rationale: "Mock-mode rewrite",
+    };
+  }
+
+  try {
+    const response = await POST(API.AI.IMPROVE_DESCRIPTION(), getHeaders(), data);
+    return response.data as ImproveDescriptionResult;
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
+      return (await refreshToken(() => improveDescription(data))) as ImproveDescriptionResult;
     }
     throw error;
   }

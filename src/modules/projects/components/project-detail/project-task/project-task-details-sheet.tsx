@@ -1,7 +1,7 @@
 import React from "react";
 import { dateToString } from "@/utils/date";
 import { format } from "date-fns";
-import { Edit, Sparkles, Trash2 } from "lucide-react";
+import { Edit, Trash2 } from "lucide-react";
 import DOMPurify from "dompurify";
 import { useTranslations } from "next-intl";
 import FilePreview from "reactjs-file-preview";
@@ -30,17 +30,20 @@ import {
   projectTaskTypeClasses,
   resolveTaskStatusStyle,
 } from "../../../utils/badges/project-task-badges";
+import { resolveAssignee } from "../../../utils/resolve-assignee";
 import { deleteProjectTask, uploadProjectTask } from "@/modules/projects/services";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useProject from "../../../hooks/projects/use-project";
 import useProjectPermissions from "../../../hooks/permissions/use-project-permissions";
 import useProjectTasks from "../../../hooks/tasks/use-project-tasks";
 import useTaskStatuses from "../../../hooks/tasks/use-task-statuses";
 import useProjectTask from "../../../hooks/tasks/use-project-task";
-import { useSmartAssignment, useTaskDurationPrediction } from "@/modules/ai/hooks/use-ai";
-import { AiBlockerRisk } from "@/modules/ai/types";
+import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import { Skeleton } from "@/components/ui/skeleton";
+import { previewTaskAi } from "@/modules/projects/services/api/project-ai-preview";
+import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
+import type { TaskAiPreviewResult } from "@/modules/projects/types/project-ai-preview";
 
 import SetReminderButton from "@/modules/reminders/components/set-reminder-button";
 import { TaskSubtasksSection } from "./task-subtasks-section";
@@ -68,6 +71,7 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
   const { project } = useProject(projectId);
+  const { user } = useCurrentUser();
   const permissions = useProjectPermissions(projectId);
   const { tasks: allTasks } = useProjectTasks(projectId);
   const { list: customStatusesQuery } = useTaskStatuses(projectId);
@@ -78,10 +82,7 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
     }
     return map;
   }, [customStatusesQuery.data]);
-  const smartAssignment = useSmartAssignment();
-  const durationPrediction = useTaskDurationPrediction();
-  const [aiBlockerRisk, setAiBlockerRisk] = React.useState<AiBlockerRisk | null>(null);
-  const [isCheckingBlockerRisk, setIsCheckingBlockerRisk] = React.useState(false);
+  const [taskAiPreview, setTaskAiPreview] = React.useState<TaskAiPreviewResult | null>(null);
 
   // Fetch the full task detail (description, comments, dependencies, labels,
   // time entries, …) — only available on `GET /projects/:projectId/tasks/:taskId`,
@@ -94,7 +95,38 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
 
   // Prefer the freshly fetched detail; fall back to the list summary while
   // the request is in-flight so the sheet opens instantly.
-  const task = detailedTask ?? summaryTask;
+  const task = detailedTask
+    ? {
+        ...summaryTask,
+        ...detailedTask,
+        assignee: detailedTask.assignee ?? summaryTask?.assignee,
+      }
+    : summaryTask;
+
+  const taskAiMutation = useMutation({
+    mutationFn: () => {
+      if (!task) {
+        throw new Error("Task detail is not available yet.");
+      }
+
+      return previewTaskAi(projectId, {
+        title: task.title,
+        description: task.description || undefined,
+        type: task.type,
+        priority: task.priority,
+        status: task.status,
+        storyPoints: typeof task.storyPoints === "number" ? task.storyPoints : undefined,
+        estimatedHours: typeof task.estimatedHours === "number" ? task.estimatedHours : undefined,
+        dueDate: task.dueDate || undefined,
+        assigneeId: typeof task.assigneeId === "string" ? task.assigneeId : undefined,
+        milestoneId: task.milestoneId || undefined,
+        sprintId: task.sprintId || undefined,
+        dependencyIds: task.dependencies?.map((dependency) => dependency.blockingTaskId).filter(Boolean) as string[] | undefined,
+      });
+    },
+    onSuccess: (response) => setTaskAiPreview(response),
+    onError: () => toast.error("Failed to load AI task suggestions."),
+  });
 
   const handleDeleteTask = async () => {
     if (!task) return;
@@ -115,18 +147,16 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
 
   if (!task) return null;
 
-  const assigneeIdString =
+  const assignee = resolveAssignee(task.assigneeId, project?.members);
+  const assigneeFallback =
     typeof task.assigneeId === "string" && task.assigneeId.length > 0
       ? task.assigneeId
-      : null;
-  const matchedMember = assigneeIdString
-    ? project?.members?.find((member) => member.userId === assigneeIdString)
-    : null;
+      : t("unassigned", { defaultValue: "Unassigned" });
   const assigneeName =
-    (matchedMember?.memberName ||
-      matchedMember?.user?.name ||
-      assigneeIdString ||
-      t("unassigned", { defaultValue: "Unassigned" })) as string;
+    task.assignee?.name ||
+    (user && user.id === task.assigneeId ? user.name : undefined) ||
+    assignee?.name ||
+    assigneeFallback;
 
   const handleAssignCandidate = async (assigneeId: string) => {
     if (!task) return;
@@ -150,33 +180,6 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
           : null) ||
         "Failed to update assignee";
       toast.error(message);
-    }
-  };
-
-  const handleCheckBlockerRisk = async () => {
-    if (!task) return;
-    setIsCheckingBlockerRisk(true);
-    try {
-      const res = await uploadProjectTask({
-        projectId,
-        id: task.id,
-        task: { aiSuggestBlockerRisk: true },
-      });
-      const risk = (res?.aiBlockerRisk ?? null) as AiBlockerRisk | null;
-      setAiBlockerRisk(risk);
-      if (!risk) {
-        toast.message("AI blocker risk: no signal returned.");
-      } else if (risk.level === "HIGH") {
-        toast.warning(`HIGH blocker risk: ${risk.flags?.join(", ") || "review dependencies"}`);
-      } else if (risk.level === "MEDIUM") {
-        toast.message(`MEDIUM blocker risk: ${risk.flags?.join(", ") || "monitor blockers"}`);
-      } else {
-        toast.success("LOW blocker risk.");
-      }
-    } catch {
-      toast.error("Failed to compute AI blocker risk.");
-    } finally {
-      setIsCheckingBlockerRisk(false);
     }
   };
 
@@ -317,151 +320,123 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
               </FieldGroup>
             </FieldSet>
 
-            <div className="space-y-3 rounded-lg border p-4">
-              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <h4 className="flex items-center gap-2 text-sm font-medium">
-                    <Sparkles className="size-4 text-primary" />
-                    AI task tools
-                  </h4>
-                  <p className="text-xs text-muted-foreground">
-                    Run AI endpoints for assignee ranking, duration prediction, and dependency-aware blocker risk.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {permissions.canUseAiSuggestions && (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          smartAssignment.mutate({
-                            projectId,
-                            taskType: task.type,
-                            taskPriority: task.priority,
-                            taskTitle: task.title,
-                          })
-                        }
-                        disabled={smartAssignment.isPending}
-                      >
-                        {smartAssignment.isPending ? "Loading..." : "AI assignees"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => durationPrediction.mutate({ taskId: task.id })}
-                        disabled={durationPrediction.isPending}
-                      >
-                        {durationPrediction.isPending ? "Loading..." : "AI estimate"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCheckBlockerRisk}
-                        disabled={isCheckingBlockerRisk}
-                      >
-                        {isCheckingBlockerRisk ? "Checking..." : "Blocker risk"}
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {smartAssignment.data?.recommendations?.length ? (
-                <div className="space-y-2">
-                  {smartAssignment.data.recommendations.map((candidate) => (
-                    <div key={candidate.userId} className="flex items-center justify-between rounded-md border p-3">
-                      <div>
-                        <p className="text-sm font-medium">{candidate.userName || candidate.userId}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Score {candidate.totalScore.toFixed(1)} · workload {candidate.workloadScore.toFixed(1)} · fit {candidate.historicalFitScore.toFixed(1)} · availability {candidate.availabilityScore.toFixed(1)}
-                        </p>
-                        {candidate.rationale ? (
-                          <p className="mt-1 text-xs text-muted-foreground">{candidate.rationale}</p>
-                        ) : null}
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleAssignCandidate(candidate.userId)}
-                        disabled={!permissions.canAssignTask}
-                      >
-                        Assign
-                      </Button>
+            {permissions.canUseAiSuggestions ? (
+              <PmAiAssistPanel
+                title="AI Task Tools"
+                description="Preview assignment, estimate, and blocker signals without saving changes first."
+                actions={[
+                  {
+                    id: "task-preview",
+                    label: "Refresh AI suggestions",
+                    onClick: () => taskAiMutation.mutate(),
+                    loading: taskAiMutation.isPending,
+                    priority: true,
+                  },
+                ]}
+              >
+                {taskAiPreview?.assignmentRecommendations?.length ? (
+                  <PmAiSuggestionCard title="Suggested assignees" onDismiss={() => setTaskAiPreview(null)}>
+                    <div className="space-y-2">
+                      {taskAiPreview.assignmentRecommendations.map((candidate) => (
+                        <div key={candidate.userId} className="flex items-center justify-between rounded-md border p-3">
+                          <div>
+                            <p className="text-sm font-medium">{candidate.userName || candidate.userId}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Score {candidate.totalScore.toFixed(1)} · workload {candidate.workloadScore.toFixed(1)} · fit {candidate.historicalFitScore.toFixed(1)}
+                            </p>
+                            {candidate.rationale ? (
+                              <p className="mt-1 text-xs text-muted-foreground">{candidate.rationale}</p>
+                            ) : null}
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleAssignCandidate(candidate.userId)}
+                            disabled={!permissions.canAssignTask}
+                          >
+                            Assign
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : null}
+                  </PmAiSuggestionCard>
+                ) : null}
 
-              {durationPrediction.data ? (
-                <div className="rounded-md border p-3 space-y-2">
-                  <p className="text-sm font-medium">
-                    Predicted duration: {durationPrediction.data.predictedHours}h
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Confidence {Math.round(durationPrediction.data.confidence * 100)}%
-                  </p>
-                  {durationPrediction.data.reasonCodes?.length ? (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium">Why this estimate</p>
+                {taskAiPreview?.estimatePrediction ? (
+                  <PmAiSuggestionCard
+                    title="Suggested estimate"
+                    badge={`${Math.round(taskAiPreview.estimatePrediction.confidence * 100)}% confidence`}
+                    onDismiss={() => setTaskAiPreview(null)}
+                    footer={
+                      canEdit ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await uploadProjectTask({
+                                projectId,
+                                id: task.id,
+                                task: { estimatedHours: taskAiPreview.estimatePrediction.predictedHours },
+                              });
+                              await queryClient.invalidateQueries({ queryKey: ["project-tasks", projectId] });
+                              await queryClient.invalidateQueries({ queryKey: ["project-task", projectId, task.id] });
+                              toast.success("Estimate updated");
+                            } catch {
+                              toast.error("Failed to update estimate");
+                            }
+                          }}
+                        >
+                          Apply estimate
+                        </Button>
+                      ) : undefined
+                    }
+                  >
+                    <p className="text-sm font-medium">
+                      Predicted duration: {taskAiPreview.estimatePrediction.predictedHours}h
+                    </p>
+                    {taskAiPreview.estimatePrediction.reasonCodes?.length ? (
                       <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                        {durationPrediction.data.reasonCodes.map((code) => (
+                        {taskAiPreview.estimatePrediction.reasonCodes.map((code) => (
                           <li key={code}>{code}</li>
                         ))}
                       </ul>
-                    </div>
-                  ) : null}
-                  {durationPrediction.data.riskFlags?.length ? (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-destructive">Risk flags</p>
+                    ) : null}
+                    {taskAiPreview.estimatePrediction.riskFlags?.length ? (
                       <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                        {durationPrediction.data.riskFlags.map((flag) => (
+                        {taskAiPreview.estimatePrediction.riskFlags.map((flag) => (
                           <li key={flag}>{flag}</li>
                         ))}
                       </ul>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+                    ) : null}
+                  </PmAiSuggestionCard>
+                ) : null}
 
-              {aiBlockerRisk ? (
-                <div
-                  className={cn(
-                    "rounded-md border p-3 space-y-2 text-sm",
-                    aiBlockerRisk.level === "HIGH" && "pm-surface-risk-high",
-                    aiBlockerRisk.level === "MEDIUM" && "pm-surface-risk-medium",
-                    aiBlockerRisk.level === "LOW" && "pm-surface-risk-low",
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">Blocker risk</span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        aiBlockerRisk.level === "HIGH" && "pm-badge-risk-high border",
-                        aiBlockerRisk.level === "MEDIUM" && "pm-badge-risk-medium border",
-                        aiBlockerRisk.level === "LOW" && "pm-badge-risk-low border",
-                      )}
-                    >
-                      {aiBlockerRisk.level}
-                    </Badge>
-                  </div>
-                  {aiBlockerRisk.flags?.length ? (
-                    <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                      {aiBlockerRisk.flags.map((flag) => (
-                        <li key={flag}>{flag}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">No risk flags detected.</p>
-                  )}
-                </div>
-              ) : null}
-            </div>
+                {taskAiPreview?.blockerRisk ? (
+                  <PmAiSuggestionCard
+                    title="Blocker risk"
+                    badge={taskAiPreview.blockerRisk.level}
+                    onDismiss={() => setTaskAiPreview(null)}
+                    className={cn(
+                      taskAiPreview.blockerRisk.level === "HIGH" && "pm-surface-risk-high",
+                      taskAiPreview.blockerRisk.level === "MEDIUM" && "pm-surface-risk-medium",
+                      taskAiPreview.blockerRisk.level === "LOW" && "pm-surface-risk-low",
+                    )}
+                  >
+                    {taskAiPreview.blockerRisk.flags?.length ? (
+                      <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                        {taskAiPreview.blockerRisk.flags.map((flag) => (
+                          <li key={flag}>{flag}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No risk flags detected.</p>
+                    )}
+                  </PmAiSuggestionCard>
+                ) : null}
+              </PmAiAssistPanel>
+            ) : null}
           </div>
 
           <FieldSeparator />

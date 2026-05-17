@@ -13,7 +13,6 @@ export interface ProjectTaskPayload {
   dueDate?: string | null;
   assigneeId?: string | null;
   milestoneId?: string | null;
-  epicId?: string | null;
   sprintId?: string | null;
   parentTaskId?: string | null;
   progressPercent?: number | null;
@@ -36,7 +35,6 @@ interface Params {
 const UUID_FIELDS = new Set([
   "assigneeId",
   "milestoneId",
-  "epicId",
   "sprintId",
   "parentTaskId",
 ]);

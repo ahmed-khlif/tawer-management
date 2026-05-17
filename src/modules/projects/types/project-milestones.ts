@@ -60,6 +60,8 @@ export interface GanttEpic {
   id: string;
   name: string;
   description?: string | null;
+  sprintId: string;
+  color?: string | null;
   startDate?: string | null;
   endDate?: string | null;
 }

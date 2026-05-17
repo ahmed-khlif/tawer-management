@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { CircleDot, BarChart3, Tag } from "lucide-react";
+import { CircleDot, BarChart3, Tag, ListChecks, Activity } from "lucide-react";
 import Loading from "@/components/page-loader";
 import Error500 from "@/components/error/500";
 
@@ -30,6 +30,8 @@ import {
   FilterMenu,
   type FilterMenuCategory,
 } from "../shared/filter-menu";
+import { PageHeaderStrip } from "../shared/page-header-strip";
+import AdminPageShell from "../shared/admin-page-shell";
 
 type ViewMode = "list" | "grid";
 
@@ -166,10 +168,34 @@ export default function AssignedProjectTasks() {
   };
 
   return (
-    <div className="space-y-4">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold tracking-tight">{t("pageTitle")}</h1>
-      </header>
+    <AdminPageShell className="space-y-4">
+      <PageHeaderStrip
+        icon={ListChecks}
+        title={t("pageTitle")}
+        description="Review project work assigned to you with the same planning-first layout used across the PM workspace."
+        metrics={[
+          {
+            icon: Activity,
+            value: tasks.length,
+            label: "visible tasks",
+            tone: "primary",
+          },
+          status
+            ? {
+                icon: CircleDot,
+                label: t(`statusLabels.${status.toLowerCase()}`),
+                tone: "running",
+              }
+            : false,
+          priority
+            ? {
+                icon: BarChart3,
+                label: t(`priorityLabels.${priority.toLowerCase()}`),
+                tone: "warning",
+              }
+            : false,
+        ]}
+      />
 
       {/* Workload summary */}
       <MyWorkloadSummaryCard />
@@ -187,7 +213,7 @@ export default function AssignedProjectTasks() {
         onViewModeChange={setViewMode}
         textOverrides={textOverrides}
         sticky={false}
-        className="rounded-xl border bg-card/50 px-3 py-2 shadow-sm sm:px-4"
+        className="rounded-xl border border-border/70 bg-card/90 px-3 py-2 shadow-sm sm:px-4"
       />
 
       {/* Content */}
@@ -206,7 +232,7 @@ export default function AssignedProjectTasks() {
           ))}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 rounded-2xl border border-border/70 bg-card/50 p-3 shadow-sm">
           {tasks.map((task) => (
             <ProjectTaskItem key={task.id} task={task} projectType="AGILE" viewMode="list" onClick={() => handleSelectTask(task)} />
           ))}
@@ -232,6 +258,6 @@ export default function AssignedProjectTasks() {
           isAgile={true}
         />
       )}
-    </div>
+    </AdminPageShell>
   );
 }

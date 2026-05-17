@@ -17,7 +17,7 @@ export default function GanttLeftPanel({
   onRowClick,
 }: GanttLeftPanelProps) {
   return (
-    <div>
+    <div className="bg-card/95">
       {rows.map((row) => (
         <GanttRowLabel
           key={row.id}

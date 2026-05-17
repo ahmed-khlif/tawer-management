@@ -12,6 +12,6 @@ export default function useCurrentWorkDay() {
   return {
     workDay: data,
     isLoading: data === undefined || isLoading,
-    isError: isError || data === null
+    isError
   };
 }

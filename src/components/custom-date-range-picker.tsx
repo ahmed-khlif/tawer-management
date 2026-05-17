@@ -10,9 +10,10 @@ import {
   startOfDay,
   endOfDay,
   startOfYear,
-  startOfWeek
+  startOfWeek,
 } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -38,18 +39,49 @@ const dateFilterPresets = [
   { name: "This Year", value: "thisYear" }
 ];
 
+type CalendarDateRangePickerProps = React.HTMLAttributes<HTMLDivElement> & {
+  value?: DateRange | undefined;
+  onRangeChange?: (value: DateRange | undefined) => void;
+  placeholder?: string;
+};
+
 export default function CalendarDateRangePicker({
-  className
-}: React.HTMLAttributes<HTMLDivElement>) {
+  className,
+  value,
+  onRangeChange,
+  placeholder = "Select date range",
+}: CalendarDateRangePickerProps) {
   const isMobile = useIsMobile();
   const today = new Date();
-  const twentyEightDaysAgo = startOfDay(subDays(today, 27));
+  const defaultRange = React.useMemo<DateRange>(
+    () => ({
+      from: startOfDay(subDays(today, 27)),
+      to: endOfDay(today),
+    }),
+    [today],
+  );
 
-  // Use global store
-  // const { date, setDate } = useAnalysisPeriodStore();
-  const [date, setDate] = React.useState({ from: new Date(), to: new Date() })
+  const isControlled = value !== undefined;
+  const [internalDate, setInternalDate] = React.useState<DateRange | undefined>(defaultRange);
+  const date = isControlled ? value : internalDate;
   const [open, setOpen] = React.useState(false);
-  const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date());
+  const [currentMonth, setCurrentMonth] = React.useState<Date>(date?.from ?? new Date());
+
+  React.useEffect(() => {
+    if (date?.from) {
+      setCurrentMonth(date.from);
+    }
+  }, [date?.from]);
+
+  const setDate = React.useCallback(
+    (nextValue: DateRange | undefined) => {
+      if (!isControlled) {
+        setInternalDate(nextValue);
+      }
+      onRangeChange?.(nextValue);
+    },
+    [isControlled, onRangeChange],
+  );
 
   const handleQuickSelect = (from: Date, to: Date) => {
     setDate({ from, to });
@@ -134,7 +166,7 @@ export default function CalendarDateRangePicker({
               variant={"outline"}
               className={cn(
                 "justify-start text-left font-normal",
-                !date && "text-muted-foreground"
+                !date?.from && "text-muted-foreground"
               )}>
               <CalendarIcon />
               {date?.from ? (
@@ -146,7 +178,7 @@ export default function CalendarDateRangePicker({
                   format(date.from, "dd MMM yyyy")
                 )
               ) : (
-                <span>Select date range</span>
+                <span>{placeholder}</span>
               )}
             </Button>
           )}
@@ -191,7 +223,7 @@ export default function CalendarDateRangePicker({
               month={currentMonth}
               selected={date}
               onSelect={(newDate) => {
-                setDate({ from: new Date(), to: new Date() });
+                setDate(newDate);
                 if (newDate?.from) {
                   setCurrentMonth(newDate.from);
                 }

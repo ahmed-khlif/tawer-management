@@ -8,6 +8,8 @@ import {
   ListIcon,
   User,
   Plus,
+  Expand,
+  Shrink,
   BarChart3,
   Tag,
   Flag,
@@ -29,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useTranslations } from "next-intl";
 import {
   EnumProjectTaskPriority,
@@ -66,9 +69,13 @@ interface Props {
   setMilestoneId: (v: string | undefined) => void;
   epicId: string | undefined;
   setEpicId: (v: string | undefined) => void;
+  groupBy?: "none" | "assignee" | "epic";
+  setGroupBy?: (v: "none" | "assignee" | "epic") => void;
   mineOnly?: boolean;
   onToggleMineOnly?: () => void;
   onAddTask?: () => void;
+  isKanbanFullscreen?: boolean;
+  onToggleKanbanFullscreen?: () => void;
 }
 
 export default function ProjectTasksToolbar({
@@ -87,9 +94,13 @@ export default function ProjectTasksToolbar({
   setMilestoneId,
   epicId,
   setEpicId,
+  groupBy = "none",
+  setGroupBy,
   mineOnly = false,
   onToggleMineOnly,
   onAddTask,
+  isKanbanFullscreen = false,
+  onToggleKanbanFullscreen,
 }: Props) {
   const tTasks = useTranslations("modules.projects.tasks");
   const { viewMode, setViewMode, visibleAttributes, toggleAttribute } =
@@ -343,53 +354,74 @@ export default function ProjectTasksToolbar({
   };
 
   const displaySettingsSlot = (
-    <DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon" variant="outline" className="h-9 w-9 shrink-0">
-              <Settings2 className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent>
-          {tTasks("displaySettings.title", {
-            defaultValue: "Display Settings",
+    <div className="flex items-center gap-2">
+      {setGroupBy ? (
+        <ToggleGroup
+          type="single"
+          value={groupBy}
+          onValueChange={(value) => {
+            if (value === "none" || value === "assignee" || value === "epic") {
+              setGroupBy(value);
+            }
+          }}
+          variant="outline"
+          size="sm"
+          className="hidden md:flex"
+        >
+          <ToggleGroupItem value="none">None</ToggleGroupItem>
+          <ToggleGroupItem value="assignee">Assignee</ToggleGroupItem>
+          <ToggleGroupItem value="epic">Epic</ToggleGroupItem>
+        </ToggleGroup>
+      ) : null}
+
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="outline" className="h-9 w-9 shrink-0">
+                <Settings2 className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            {tTasks("displaySettings.title", {
+              defaultValue: "Display Settings",
+            })}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent className="w-56" align="end">
+          <DropdownMenuLabel>
+            {tTasks("displaySettings.title", {
+              defaultValue: "Display Settings",
+            })}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+            {tTasks("displaySettings.showAttributes", {
+              defaultValue: "Show Attributes",
+            })}
+          </DropdownMenuLabel>
+          {Object.entries(visibleAttributes).map(([key, value]) => {
+            if (
+              (key === "epic" || key === "points") &&
+              project.projectType !== "AGILE"
+            )
+              return null;
+            return (
+              <DropdownMenuCheckboxItem
+                key={key}
+                checked={value as boolean}
+                onCheckedChange={() => toggleAttribute(key as never)}
+              >
+                {tTasks(`displaySettings.attributes.${key}`, {
+                  defaultValue: key,
+                })}
+              </DropdownMenuCheckboxItem>
+            );
           })}
-        </TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent className="w-56" align="end">
-        <DropdownMenuLabel>
-          {tTasks("displaySettings.title", {
-            defaultValue: "Display Settings",
-          })}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          {tTasks("displaySettings.showAttributes", {
-            defaultValue: "Show Attributes",
-          })}
-        </DropdownMenuLabel>
-        {Object.entries(visibleAttributes).map(([key, value]) => {
-          if (
-            (key === "epic" || key === "points") &&
-            project.projectType !== "AGILE"
-          )
-            return null;
-          return (
-            <DropdownMenuCheckboxItem
-              key={key}
-              checked={value as boolean}
-              onCheckedChange={() => toggleAttribute(key as never)}
-            >
-              {tTasks(`displaySettings.attributes.${key}`, {
-                defaultValue: key,
-              })}
-            </DropdownMenuCheckboxItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 
   return (
@@ -435,18 +467,47 @@ export default function ProjectTasksToolbar({
       textOverrides={textOverrides}
       filterDropdownClassName="z-[150]"
       actions={
-        onAddTask ? (
-          <Button
-            type="button"
-            size="sm"
-            onClick={onAddTask}
-            className="gap-1.5"
-          >
-            <Plus className="size-4" />
-            <span className="hidden sm:inline">
-              {tTasks("addTask", { defaultValue: "Add task" })}
-            </span>
-          </Button>
+        onAddTask || onToggleKanbanFullscreen ? (
+          <div className="flex items-center gap-2">
+            {viewMode === "grid" && onToggleKanbanFullscreen ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onToggleKanbanFullscreen}
+                className="gap-1.5"
+              >
+                {isKanbanFullscreen ? (
+                  <Shrink className="size-4" />
+                ) : (
+                  <Expand className="size-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {isKanbanFullscreen
+                    ? tTasks("toolbar.exitFullscreen", {
+                        defaultValue: "Exit fullscreen",
+                      })
+                    : tTasks("toolbar.fullscreen", {
+                        defaultValue: "Fullscreen",
+                      })}
+                </span>
+              </Button>
+            ) : null}
+
+            {onAddTask ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={onAddTask}
+                className="gap-1.5"
+              >
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">
+                  {tTasks("addTask", { defaultValue: "Add task" })}
+                </span>
+              </Button>
+            ) : null}
+          </div>
         ) : null
       }
     />

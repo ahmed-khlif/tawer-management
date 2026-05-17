@@ -5,6 +5,7 @@ import TasksList from "@/modules/tasks/components/tasks-list";
 import TaskDetailSheet from "@/modules/tasks/components/task-details-sheet";
 import TaskUploadForm from "../uploads/task-upload";
 import { TaskType } from "../types/tasks";
+import AdminPageShell from "@/modules/projects/components/shared/admin-page-shell";
 
 export default function PersonalTasks() {
   const { activeTab, isAddDialogOpen, setAddDialogOpen, isTodoSheetOpen, setTodoSheetOpen } = useTodoStore();
@@ -13,7 +14,7 @@ export default function PersonalTasks() {
   const [editTask, setEditTask] = React.useState<TaskType | null>(null);
 
   return (
-    <div className="space-y-4">
+    <AdminPageShell className="space-y-4">
       <TasksList
         activeTab={activeTab}
         onSelectTask={(id) => { setSelectedId(id); setTodoSheetOpen(true); }}
@@ -32,6 +33,6 @@ export default function PersonalTasks() {
         taskId={selectedId}
         onEditClick={(task) => { setTodoSheetOpen(false); setEditTask(task); setAddDialogOpen(true); }}
       />
-    </div>
+    </AdminPageShell>
   );
 }

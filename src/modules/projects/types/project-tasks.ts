@@ -179,6 +179,32 @@ export interface ProjectTaskAttachmentInResponse {
 
 export type ProjectTaskAttachment = ProjectTaskAttachmentInResponse;
 
+export interface ProjectTaskAssigneeInResponse {
+  id: string;
+  name?: string;
+  email?: string;
+  image?: string;
+}
+
+export interface ProjectTaskAssignee {
+  id: string;
+  name?: string;
+  email?: string;
+  image?: string;
+}
+
+export interface ProjectTaskEpicSummaryInResponse {
+  id: string;
+  title: string;
+  color?: string | null;
+}
+
+export interface ProjectTaskEpicSummary {
+  id: string;
+  title: string;
+  color?: string | null;
+}
+
 // ─── Backend Response Shape (extended) ───────────────────────────────────────
 
 export interface UserWorkloadSummary {
@@ -233,10 +259,12 @@ export interface ProjectTaskInResponseType {
   progressPercent?: number;
   displayOrder?: number;
   assigneeId?: string;
+  assignee?: ProjectTaskAssigneeInResponse | null;
   assigneeIds?: string[];
   reporterId?: string;
   milestoneId?: string;
   epicId?: string;
+  epic?: ProjectTaskEpicSummaryInResponse | null;
   sprintId?: string;
   parentTaskId?: string;
   customStatusId?: string;
@@ -278,10 +306,12 @@ export interface ProjectTaskType {
   dueDate?: string;
   displayOrder?: number;
   assigneeId?: string;
+  assignee?: ProjectTaskAssignee | null;
   assigneeIds?: string[];
   reporterId?: string;
   milestoneId?: string;
   epicId?: string;
+  epic?: ProjectTaskEpicSummary | null;
   sprintId?: string;
   parentTaskId?: string;
   customStatusId?: string;
@@ -319,6 +349,7 @@ export interface MoveTaskInKanbanPayload {
   taskId: string;
   status: string;
   displayOrder?: number;
+  epicId?: string | null;
 }
 
 export interface ReorderBacklogItem {

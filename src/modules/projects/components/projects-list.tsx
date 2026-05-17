@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useSensor, useSensors, PointerSensor, KeyboardSensor, type DragStartEvent, type DragEndEvent, type DragCancelEvent } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useTranslations } from "next-intl";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { useProjectStore } from "@/modules/projects/store/projects";
 import useProjects from "../hooks/projects/use-projects";
@@ -35,10 +36,13 @@ import ProjectUploadSheet from "./project-upload-sheet";
 import Error500 from "@/components/error/500";
 import { CardGridSkeleton } from "./shared/skeletons";
 import { FilterMenu, type FilterMenuCategory } from "./shared/filter-menu";
+import { findProjectTemplatePreset } from "../types/project-template-presets";
 
 export default function ProjectsList() {
   const t = useTranslations("modules.projects.list");
   const paginationContent = useTranslations("shared.pagination");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const { projects, projectsAreLoading, projectsPageLoading, projectsError, page, setPage, pagesNumber, records, currentUserId, creators, refresh, searchState, projectTypeState, businessUnitState, isArchivedState, paidState, sortByState, createdByState, statusTabCounts } = useProjects();
   const { handleStatusChange, handleArchiveProject, handleDeleteProject } = useProjectActions(refresh);
@@ -62,6 +66,32 @@ export default function ProjectsList() {
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const templateId = searchParams.get("template");
+  const createMode = searchParams.get("create");
+  const selectedTemplate = React.useMemo(
+    () => findProjectTemplatePreset(templateId),
+    [templateId],
+  );
+
+  React.useEffect(() => {
+    if (createMode === "1" && canAdd && !editProject) {
+      setAddDialogOpen(true);
+    }
+  }, [canAdd, createMode, editProject, setAddDialogOpen]);
+
+  const closeCreateFlow = React.useCallback(() => {
+    setAddDialogOpen(false);
+    setEditProject(null);
+    refresh();
+
+    if (searchParams.get("create") || searchParams.get("template")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("create");
+      params.delete("template");
+      const next = params.toString();
+      router.replace(next ? `/dashboard/projects?${next}` : "/dashboard/projects");
+    }
+  }, [refresh, router, searchParams, setAddDialogOpen]);
 
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const clearSelection = () => setSelectedIds(new Set());
@@ -334,7 +364,10 @@ export default function ProjectsList() {
           canAdd ? (
             <Button
               size="sm"
-              onClick={() => setAddDialogOpen(true)}
+              onClick={() => {
+                setEditProject(null);
+                setAddDialogOpen(true);
+              }}
               className="gap-1.5"
             >
               <Plus className="size-4" />
@@ -375,7 +408,10 @@ export default function ProjectsList() {
             canAdd ? (
               <Button
                 size="sm"
-                onClick={() => setAddDialogOpen(true)}
+                onClick={() => {
+                  setEditProject(null);
+                  setAddDialogOpen(true);
+                }}
                 className="gap-1"
               >
                 <Plus className="size-3.5" />
@@ -430,8 +466,9 @@ export default function ProjectsList() {
 
       <ProjectUploadSheet
         isOpen={isAddDialogOpen}
-        onClose={() => { setAddDialogOpen(false); setEditProject(null); refresh(); }}
+        onClose={closeCreateFlow}
         project={editProject as ProjectType}
+        templatePreset={selectedTemplate}
       />
 
       <ConfirmDialog

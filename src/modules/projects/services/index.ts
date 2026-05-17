@@ -7,6 +7,7 @@ import retrieveProjectByIdApi from "./api/project";
 import retrieveProjectTasksApi from "./api/project-tasks";
 import retrieveProjectCreatorsApi from "./api/project-creators";
 import retrieveProjectSprintsApi from "./api/project-sprints";
+import { fetchProjectCalendar as fetchProjectCalendarApi } from "./api/project-calendar";
 
 // ── Extraction: Mock implementations ────────────────────────────────────────
 import { mockRetrieveProjects, mockFetchProjectStatusCounts } from "./mock/projects.mock";
@@ -65,6 +66,7 @@ export const retrieveProjectById     = isMock ? mockRetrieveProjectById    : ret
 export const retrieveProjectTasks    = isMock ? mockRetrieveProjectTasks   : retrieveProjectTasksApi;
 export const retrieveProjectCreators = isMock ? () => Promise.resolve([])  : retrieveProjectCreatorsApi;
 export const retrieveProjectSprints  = isMock ? mockRetrieveProjectSprints : retrieveProjectSprintsApi;
+export const fetchProjectCalendar    = fetchProjectCalendarApi;
 
 // ── Mutation exports ─────────────────────────────────────────────────────────
 export const uploadProject            = isMock ? mockUploadProject            : uploadProjectApi;

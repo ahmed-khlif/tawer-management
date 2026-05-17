@@ -1,5 +1,6 @@
 "use client";
-import { Sparkles } from "lucide-react";
+import * as React from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,31 +29,83 @@ import TextEditor from "@/components/ui/text-editor";
 import TimeInput from "@/components/time-input";
 import useProjectUpload from "@/modules/projects/hooks/projects/use-project-upload";
 import UserSearchCombobox from "./project-detail/members/user-search-combobox";
+import { previewProjectRoadmap } from "@/modules/projects/services/api/project-ai-preview";
+import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
+import PmAiDescriptionAssist from "@/modules/projects/components/shared/pm-ai-description-assist";
+import type { ProjectRoadmapPreviewResult } from "@/modules/projects/types/project-ai-preview";
+import type { ProjectTemplatePreset } from "@/modules/projects/types/project-template-presets";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeftRight } from "lucide-react";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   project?: ProjectType;
+  templatePreset?: ProjectTemplatePreset | null;
 }
 
-export default function ProjectUploadSheet({ isOpen, onClose, project }: Props) {
+export default function ProjectUploadSheet({ isOpen, onClose, project, templatePreset }: Props) {
   const t = useTranslations("modules.projects");
   const isEdit = !!project?.id;
+  const [roadmapPreview, setRoadmapPreview] = React.useState<ProjectRoadmapPreviewResult | null>(null);
+  const [roadmapPinned, setRoadmapPinned] = React.useState(false);
 
-  const { form, isPending, onSubmit, error, aiResponse, clearAiResponse } = useProjectUpload({
+  const { form, isPending, onSubmit, error, clearAiResponse } = useProjectUpload({
     project,
-    onSuccess: (response) => {
+    templatePreset,
+    onSuccess: () => {
       form.reset();
-      if (!response?.aiInsights && !response?.aiRoadmapRecommendation && !response?.aiSuggestedDurationDays) {
-        onClose();
-      }
+      setRoadmapPreview(null);
+      setRoadmapPinned(false);
+      clearAiResponse();
+      onClose();
+    },
+  });
+
+  const roadmapPreviewMutation = useMutation({
+    mutationFn: previewProjectRoadmap,
+    onSuccess: (response) => {
+      setRoadmapPreview(response);
+      setRoadmapPinned(false);
     },
   });
 
   const handleClose = () => {
     form.reset();
     clearAiResponse();
+    setRoadmapPreview(null);
+    setRoadmapPinned(false);
     onClose();
+  };
+
+  const watchedName = form.watch("name");
+  const watchedDescription = form.watch("description");
+  const watchedProjectType = form.watch("projectType");
+  const watchedBusinessUnit = form.watch("businessUnit");
+  const watchedStartDate = form.watch("startDate");
+  const watchedEndDate = form.watch("endDate");
+  const watchedEstimatedStartDate = form.watch("estimatedStartDate");
+  const watchedEstimatedEndDate = form.watch("estimatedEndDate");
+  const canSuggestRoadmap =
+    !!watchedName?.trim() &&
+    !!watchedProjectType &&
+    !!watchedBusinessUnit &&
+    !!watchedStartDate &&
+    !!watchedEndDate;
+
+  const handleRoadmapPreview = () => {
+    if (!canSuggestRoadmap) return;
+    roadmapPreviewMutation.mutate({
+      name: watchedName.trim(),
+      description: watchedDescription || undefined,
+      projectType: watchedProjectType,
+      businessUnit: watchedBusinessUnit!,
+      startDate: watchedStartDate,
+      endDate: watchedEndDate,
+      estimatedStartDate: watchedEstimatedStartDate || undefined,
+      estimatedEndDate: watchedEstimatedEndDate || undefined,
+    });
   };
 
   return (
@@ -68,6 +121,30 @@ export default function ProjectUploadSheet({ isOpen, onClose, project }: Props) 
 
         <Form {...(form as any)}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 p-4 pt-2">
+            {!isEdit && templatePreset ? (
+              <div className="rounded-xl border bg-primary/5 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                        Template selected
+                      </Badge>
+                      <Badge variant="outline">{templatePreset.category}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{templatePreset.title}</p>
+                      <p className="text-xs text-muted-foreground">{templatePreset.description}</p>
+                    </div>
+                  </div>
+                  <Button asChild size="sm" variant="outline" className="gap-1.5">
+                    <Link href="/dashboard/project-templates">
+                      <ArrowLeftRight className="size-3.5" />
+                      Change template
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             {/* Name + Display Order */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -109,6 +186,12 @@ export default function ProjectUploadSheet({ isOpen, onClose, project }: Props) 
                   <FormControl>
                     <Textarea placeholder={t("upload.form.placeholders.description", { defaultValue: "Describe the project..." })} {...field} />
                   </FormControl>
+                  <PmAiDescriptionAssist
+                    entityType="PROJECT"
+                    title={form.watch("name")}
+                    description={field.value}
+                    onApply={(value) => form.setValue("description", value, { shouldDirty: true })}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -249,91 +332,79 @@ export default function ProjectUploadSheet({ isOpen, onClose, project }: Props) 
               />
             )}
 
-            {/* AI assistance — create-only */}
-            {!isEdit && (
-              <div className="flex flex-col gap-3 p-4 border rounded-md bg-muted/40">
-                <FormField
-                  control={form.control}
-                  name="aiSuggestRoadmap"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between">
-                      <div>
-                        <FormLabel className="flex items-center gap-2 text-sm font-medium">
-                          <Sparkles className="size-4 text-primary" />
-                          {t("upload.form.labels.aiSuggestRoadmap", { defaultValue: "Suggest milestones & epics" })}
-                        </FormLabel>
-                        <p className="text-xs text-muted-foreground">
-                          {t("upload.form.hints.aiSuggestRoadmap", {
-                            defaultValue:
-                              "Use AI to generate an initial roadmap (milestones + epics + duration estimate) at creation time.",
-                          })}
-                        </p>
-                      </div>
-                      <FormControl>
-                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-
-            {/* AI response summary after creation */}
-            {aiResponse && (aiResponse.aiInsights || aiResponse.aiRoadmapRecommendation || aiResponse.aiSuggestedDurationDays) && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Sparkles className="size-4 text-primary" />
-                  AI suggestions for your new project
-                </div>
-                {typeof aiResponse.aiSuggestedDurationDays === "number" && (
-                  <p className="text-sm">
-                    Estimated duration: <span className="font-semibold">{aiResponse.aiSuggestedDurationDays} days</span>
+            <PmAiAssistPanel
+              title={isEdit ? "AI Project Planning" : "AI Project Kickoff"}
+              description="Use AI to shape a better roadmap once the project basics are in place."
+              actions={[
+                {
+                  id: "roadmap",
+                  label: "Suggest roadmap",
+                  onClick: handleRoadmapPreview,
+                  disabled: !canSuggestRoadmap,
+                  hint: "Add a project name, type, business unit, and dates first.",
+                  loading: roadmapPreviewMutation.isPending,
+                  priority: !watchedEstimatedEndDate,
+                },
+              ]}
+            >
+              {roadmapPreview ? (
+                <PmAiSuggestionCard
+                  title="Roadmap preview"
+                  badge={`${roadmapPreview.aiSuggestedDurationDays} days`}
+                  onDismiss={() => {
+                    setRoadmapPreview(null);
+                    setRoadmapPinned(false);
+                  }}
+                  footer={
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          form.setValue("estimatedStartDate", roadmapPreview.suggestedEstimatedStartDate, { shouldDirty: true });
+                          form.setValue("estimatedEndDate", roadmapPreview.suggestedEstimatedEndDate, { shouldDirty: true });
+                        }}
+                      >
+                        Apply dates
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setRoadmapPinned(true)}
+                      >
+                        Keep roadmap
+                      </Button>
+                    </>
+                  }
+                >
+                  {roadmapPinned ? (
+                    <p className="text-xs text-primary">Roadmap pinned to this draft while you continue editing.</p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    {roadmapPreview.aiRoadmapRecommendation.rationale}
                   </p>
-                )}
-                {aiResponse.aiRoadmapRecommendation && (
-                  <div className="space-y-2 text-sm">
-                    {aiResponse.aiRoadmapRecommendation.suggestedMilestones?.length > 0 && (
-                      <div>
-                        <p className="font-medium">Suggested milestones</p>
-                        <ul className="list-disc pl-5 text-muted-foreground">
-                          {aiResponse.aiRoadmapRecommendation.suggestedMilestones.map((milestone) => (
-                            <li key={milestone}>{milestone}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {aiResponse.aiRoadmapRecommendation.suggestedEpics?.length > 0 && (
-                      <div>
-                        <p className="font-medium">Suggested epics</p>
-                        <ul className="list-disc pl-5 text-muted-foreground">
-                          {aiResponse.aiRoadmapRecommendation.suggestedEpics.map((epic) => (
-                            <li key={epic}>{epic}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {aiResponse.aiRoadmapRecommendation.rationale && (
-                      <p className="text-xs text-muted-foreground">{aiResponse.aiRoadmapRecommendation.rationale}</p>
-                    )}
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suggested milestones</p>
+                      <ul className="mt-2 list-disc pl-4 text-sm text-muted-foreground">
+                        {roadmapPreview.aiRoadmapRecommendation.suggestedMilestones.map((milestone) => (
+                          <li key={milestone}>{milestone}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="rounded-lg border bg-muted/20 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Suggested epics</p>
+                      <ul className="mt-2 list-disc pl-4 text-sm text-muted-foreground">
+                        {roadmapPreview.aiRoadmapRecommendation.suggestedEpics.map((epic) => (
+                          <li key={epic}>{epic}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                )}
-                {aiResponse.aiInsights?.recommendations?.length ? (
-                  <div className="space-y-1 text-sm">
-                    <p className="font-medium">Planning recommendations</p>
-                    <ul className="list-disc pl-5 text-muted-foreground">
-                      {aiResponse.aiInsights.recommendations.map((rec) => (
-                        <li key={rec}>{rec}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                <div className="flex justify-end">
-                  <Button size="sm" variant="outline" onClick={handleClose}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
+                </PmAiSuggestionCard>
+              ) : null}
+            </PmAiAssistPanel>
 
             {/* Paid / Archived toggles */}
             <div className="flex flex-col gap-3 p-4 border rounded-md bg-muted/40">

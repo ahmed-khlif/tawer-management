@@ -10,12 +10,14 @@ export const API = {
     LIST: () => buildUrl("/projects"),
     STATUS_COUNTS: () => buildUrl("/projects/status-counts"),
     CREATE: () => buildUrl("/projects/register"),
+    ROADMAP_PREVIEW: () => buildUrl("/projects/ai/roadmap-preview"),
     DETAIL: (projectId: string) => buildUrl(`/projects/${projectId}`),
     UPDATE: (projectId: string) => buildUrl(`/projects/${projectId}`),
     DELETE: (projectId: string) => buildUrl(`/projects/${projectId}`),
     ARCHIVE: (projectId: string) => buildUrl(`/projects/${projectId}/archive`),
     RESTORE: (projectId: string) => buildUrl(`/projects/${projectId}/restore`),
     CAPACITY: (projectId: string) => buildUrl(`/projects/${projectId}/capacity`),
+    CALENDAR: (projectId: string) => buildUrl(`/projects/${projectId}/calendar`),
     AI_INSIGHTS: (projectId: string) => buildUrl(`/projects/${projectId}/ai/insights`),
     REPORT_OVERVIEW: (projectId: string) =>
       buildUrl(`/projects/${projectId}/reports/overview`),
@@ -25,6 +27,7 @@ export const API = {
       buildUrl(`/projects/${projectId}/reports/productivity`),
     KANBAN_SETTINGS: (projectId: string) =>
       buildUrl(`/projects/${projectId}/kanban/settings`),
+    ACTIVITY: () => buildUrl('/activity/projects'),
     MEMBERS: (projectId: string) => buildUrl(`/projects/${projectId}/members`),
     MEMBER: (projectId: string, memberId: string) =>
       buildUrl(`/projects/${projectId}/members/${memberId}`),
@@ -39,6 +42,7 @@ export const API = {
   SPRINTS: {
     LIST: (projectId: string) => buildUrl(`/projects/${projectId}/sprints`),
     CREATE: (projectId: string) => buildUrl(`/projects/${projectId}/sprints`),
+    AI_PREVIEW: (projectId: string) => buildUrl(`/projects/${projectId}/sprints/ai-preview`),
     DETAIL: (sprintId: string) => buildUrl(`/sprints/${sprintId}`),
     UPDATE: (sprintId: string) => buildUrl(`/projects/sprints/${sprintId}`),
     DELETE: (sprintId: string) => buildUrl(`/projects/sprints/${sprintId}`),
@@ -53,7 +57,10 @@ export const API = {
   },
   EPICS: {
     LIST: (projectId: string) => buildUrl(`/projects/${projectId}/epics`),
+    LIST_BY_SPRINT: (projectId: string, sprintId: string) =>
+      buildUrl(`/projects/${projectId}/sprints/${sprintId}/epics`),
     CREATE: (projectId: string) => buildUrl(`/projects/${projectId}/epics`),
+    AI_PREVIEW: (projectId: string) => buildUrl(`/projects/${projectId}/epics/ai-preview`),
     DETAIL: (projectId: string, epicId: string) =>
       buildUrl(`/projects/${projectId}/epics/${epicId}`),
     UPDATE: (projectId: string, epicId: string) =>
@@ -64,6 +71,7 @@ export const API = {
   MILESTONES: {
     LIST: (projectId: string) => buildUrl(`/projects/${projectId}/milestones`),
     CREATE: (projectId: string) => buildUrl(`/projects/${projectId}/milestones`),
+    AI_PREVIEW: (projectId: string) => buildUrl(`/projects/${projectId}/milestones/ai-preview`),
     DETAIL: (projectId: string, milestoneId: string) =>
       buildUrl(`/projects/${projectId}/milestones/${milestoneId}`),
     UPDATE: (projectId: string, milestoneId: string) =>
@@ -80,6 +88,7 @@ export const API = {
       buildUrl(`/projects/${projectId}/task-statuses/${statusId}`),
     LIST: (projectId: string) => buildUrl(`/projects/${projectId}/tasks`),
     CREATE: (projectId: string) => buildUrl(`/projects/${projectId}/tasks`),
+    AI_PREVIEW: (projectId: string) => buildUrl(`/projects/${projectId}/tasks/ai-preview`),
     DETAIL: (projectId: string, taskId: string) =>
       buildUrl(`/projects/${projectId}/tasks/${taskId}`),
     UPDATE: (projectId: string, taskId: string) =>
@@ -149,6 +158,7 @@ export const API = {
   },
   AI: {
     PREDICT_TASK_DURATION: () => buildUrl("/ai/predict-task-duration"),
+    IMPROVE_DESCRIPTION: () => buildUrl("/ai/improve-description"),
     SMART_ASSIGNMENT: () => buildUrl("/ai/smart-assignment"),
     PROJECT_METRICS: (projectId: string) => buildUrl(`/ai/metrics/${projectId}`),
     PREDICTION_FEEDBACK: () => buildUrl("/ai/feedback/prediction-outcome"),

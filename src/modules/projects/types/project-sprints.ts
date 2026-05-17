@@ -29,6 +29,15 @@ export interface SprintTaskSummaryInResponse {
   }>;
 }
 
+export interface SprintEpicBreakdownInResponse {
+  id: string;
+  title: string;
+  color?: string | null;
+  taskCount: number;
+  completedTaskCount: number;
+  progress: number;
+}
+
 export interface SprintAttachmentInResponse {
   id: string;
   attachment: string;
@@ -50,6 +59,7 @@ export interface SprintInResponseType {
   contents?: SprintContentInResponse[];
   attachments?: SprintAttachmentInResponse[];
   tasks?: SprintTaskSummaryInResponse[];
+  epicBreakdown?: SprintEpicBreakdownInResponse[];
   createdAt: string;
   updatedAt: string;
 }
@@ -122,6 +132,7 @@ export interface SprintType {
   contents?: SprintContent[];
   attachments?: SprintAttachment[];
   tasks?: SprintTaskSummary[];
+  epicBreakdown?: SprintEpicBreakdown[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -135,6 +146,15 @@ export interface SprintTaskSummary {
     name: string;
     color: string | null;
   }>;
+}
+
+export interface SprintEpicBreakdown {
+  id: string;
+  title: string;
+  color?: string | null;
+  taskCount: number;
+  completedTaskCount: number;
+  progress: number;
 }
 
 export interface SprintAttachment {

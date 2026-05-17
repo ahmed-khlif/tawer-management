@@ -5,6 +5,8 @@ export interface ResolvedAssignee {
   name: string;
   /** 1–2 character initials suitable for an avatar pill. */
   initials: string;
+  /** Optional profile image when available on the member record. */
+  image?: string;
   /** Optional email address (only present when the member record has one). */
   email?: string;
   /** User-type roles attached to the member (e.g. ["MANAGER","DEVELOPER"]). */
@@ -24,7 +26,9 @@ export function resolveAssignee(
 ): ResolvedAssignee | null {
   if (typeof assigneeId !== "string" || !assigneeId) return null;
 
-  const member = members?.find((m) => m.userId === assigneeId);
+  const member = members?.find(
+    (m) => m.userId === assigneeId || m.id === assigneeId,
+  );
   const name =
     member?.memberName ||
     member?.user?.name ||
@@ -39,11 +43,12 @@ export function resolveAssignee(
     return {
       name,
       initials: initials.toUpperCase(),
+      image: member?.user?.image,
       email: member?.user?.email,
       roles: member?.userRoles,
       isManager: member?.isManager,
     };
   }
 
-  return { name: "Unknown user", initials: "?" };
+  return null;
 }

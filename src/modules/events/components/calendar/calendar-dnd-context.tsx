@@ -27,6 +27,7 @@ type CalendarDndContextType = {
   eventHeight: number | null;
   isMultiDay: boolean;
   multiDayWidth: number | null;
+  disabled: boolean;
   dragHandlePosition: {
     x?: number;
     y?: number;
@@ -46,6 +47,7 @@ const CalendarDndContext = createContext<CalendarDndContextType>({
   eventHeight: null,
   isMultiDay: false,
   multiDayWidth: null,
+  disabled: false,
   dragHandlePosition: null
 });
 
@@ -56,9 +58,14 @@ export const useCalendarDnd = () => useContext(CalendarDndContext);
 interface CalendarDndProviderProps {
   children: ReactNode;
   onEventUpdate: (event: CalendarEventType) => void;
+  disabled?: boolean;
 }
 
-export function CalendarDndProvider({ children, onEventUpdate }: CalendarDndProviderProps) {
+export function CalendarDndProvider({
+  children,
+  onEventUpdate,
+  disabled = false
+}: CalendarDndProviderProps) {
   const [activeEvent, setActiveEvent] = useState<CalendarEventType | null>(null);
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [activeView, setActiveView] = useState<"month" | "week" | "day" | null>(null);
@@ -312,7 +319,7 @@ export function CalendarDndProvider({ children, onEventUpdate }: CalendarDndProv
   return (
     <DndContext
       id={dndContextId}
-      sensors={sensors}
+      sensors={disabled ? undefined : sensors}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}>
@@ -325,6 +332,7 @@ export function CalendarDndProvider({ children, onEventUpdate }: CalendarDndProv
           eventHeight,
           isMultiDay,
           multiDayWidth,
+          disabled,
           dragHandlePosition
         }}>
         {children}

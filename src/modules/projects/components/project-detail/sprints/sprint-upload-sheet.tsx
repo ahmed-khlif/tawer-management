@@ -1,20 +1,22 @@
 "use client";
-import { Sparkles } from "lucide-react";
+import * as React from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import TextEditor from "@/components/ui/text-editor";
 import { useTranslations } from "next-intl";
 import { ErrorBanner } from "@/components/error-banner";
-import { Badge } from "@/components/ui/badge";
 import { SprintType } from "@/modules/projects/types/project-sprints";
 import TimeInput from "@/components/time-input";
 import useSprintUpload from "@/modules/projects/hooks/sprints/use-sprint-upload";
 import SprintAiCapacity from "./sprint-ai-capacity";
-import { resolveRiskBadgeClass } from "@/modules/projects/utils/badges/project-task-badges";
+import { previewSprintAi } from "@/modules/projects/services/api/project-ai-preview";
+import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
+import PmAiDescriptionAssist from "@/modules/projects/components/shared/pm-ai-description-assist";
+import type { SprintAiPreviewResult } from "@/modules/projects/types/project-ai-preview";
 
 interface Props {
   projectId: string;
@@ -28,19 +30,42 @@ interface Props {
 export default function SprintUploadSheet({ projectId, projectStartDate, projectEndDate, isOpen, onClose, sprint }: Props) {
   const t = useTranslations("modules.projects.sprints");
   const isEdit = !!sprint?.id;
+  const [preview, setPreview] = React.useState<SprintAiPreviewResult | null>(null);
 
-  const { form, isPending, onSubmit, error, aiResponse, clearAiResponse } = useSprintUpload({
+  const { form, isPending, onSubmit, error, clearAiResponse } = useSprintUpload({
     projectId,
     sprint,
-    onSuccess: (response) => {
+    onSuccess: () => {
       form.reset();
-      if (!response?.aiCapacitySignal && !response?.aiPlanningRecommendation) {
-        onClose();
-      }
+      setPreview(null);
+      onClose();
     },
   });
 
-  const handleClose = () => { form.reset(); clearAiResponse(); onClose(); };
+  const handleClose = () => { form.reset(); clearAiResponse(); setPreview(null); onClose(); };
+
+  const watchedName = form.watch("name");
+  const watchedDescription = form.watch("description");
+  const watchedStartDate = form.watch("startDate");
+  const watchedEndDate = form.watch("endDate");
+  const watchedEstimatedStartDate = form.watch("estimatedStartDate");
+  const watchedEstimatedEndDate = form.watch("estimatedEndDate");
+  const watchedCapacity = form.watch("capacity");
+  const canPreviewSprintAi = !!watchedName?.trim() && !!watchedStartDate && !!watchedEndDate;
+
+  const previewMutation = useMutation({
+    mutationFn: () =>
+      previewSprintAi(projectId, {
+        name: watchedName.trim(),
+        description: watchedDescription || undefined,
+        startDate: watchedStartDate,
+        endDate: watchedEndDate,
+        estimatedStartDate: watchedEstimatedStartDate || undefined,
+        estimatedEndDate: watchedEstimatedEndDate || undefined,
+        capacity: typeof watchedCapacity === "number" ? watchedCapacity : undefined,
+      }),
+    onSuccess: (response) => setPreview(response),
+  });
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -69,16 +94,26 @@ export default function SprintUploadSheet({ projectId, projectStartDate, project
             <FormField
               control={form.control}
               name="description"
-              render={({ field }) => (
+              render={({ field: { value, onChange, name, ...field } }) => (
                 <FormItem>
                   <FormLabel>{t("upload.form.labels.description")}</FormLabel>
                   <FormControl>
                     <TextEditor
                       initialContent={sprint?.description || ""}
+                      value={typeof value === "string" ? value : ""}
                       placeholder={t("upload.form.placeholders.description")}
+                      onChange={onChange}
+                      name={name}
                       {...field}
                     />
                   </FormControl>
+                  <PmAiDescriptionAssist
+                    entityType="SPRINT"
+                    projectId={projectId}
+                    title={form.watch("name")}
+                    description={typeof value === "string" ? value : ""}
+                    onApply={(value) => form.setValue("description", value, { shouldDirty: true })}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -162,57 +197,101 @@ export default function SprintUploadSheet({ projectId, projectStartDate, project
               )}
             />
 
-            {/* AI assistance — create-only */}
-            {!isEdit && (
-              <div className="flex flex-col gap-3 p-4 border rounded-md bg-muted/40">
-                <FormField
-                  control={form.control}
-                  name="aiSuggestCapacity"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between">
-                      <div>
-                        <FormLabel className="flex items-center gap-2 text-sm font-medium">
-                          <Sparkles className="size-4 text-primary" />
-                          {t("upload.form.labels.aiSuggestCapacity", { defaultValue: "Suggest capacity signal" })}
-                        </FormLabel>
-                        <p className="text-xs text-muted-foreground">
-                          {t("upload.form.hints.aiSuggestCapacity", {
-                            defaultValue:
-                              "Compute utilization vs commitment and surface risk-aware recommendations after creation.",
-                          })}
-                        </p>
+            <PmAiAssistPanel
+              title="AI Sprint Assist"
+              description="Check sprint capacity, suggest a sprint plan, and generate an estimated delivery window before you save."
+              actions={[
+                {
+                  id: "estimated-dates",
+                  label: "Suggest estimated dates",
+                  onClick: () => previewMutation.mutate(),
+                  disabled: !canPreviewSprintAi,
+                  hint: "Add sprint name and dates first.",
+                  loading: previewMutation.isPending,
+                  priority: !watchedEstimatedStartDate || !watchedEstimatedEndDate,
+                },
+                {
+                  id: "capacity",
+                  label: "Check capacity",
+                  onClick: () => previewMutation.mutate(),
+                  disabled: !canPreviewSprintAi,
+                  hint: "Add sprint name and dates first.",
+                  loading: previewMutation.isPending,
+                  priority: typeof watchedCapacity !== "number" || watchedCapacity <= 0,
+                },
+                {
+                  id: "planning",
+                  label: "Suggest sprint plan",
+                  onClick: () => previewMutation.mutate(),
+                  disabled: !canPreviewSprintAi,
+                  hint: "Add sprint name and dates first.",
+                  loading: previewMutation.isPending,
+                },
+              ]}
+            >
+              {preview ? (
+                <PmAiSuggestionCard
+                  title="Sprint AI preview"
+                  badge={preview.aiCapacitySignal?.riskLevel}
+                  onDismiss={() => setPreview(null)}
+                  footer={
+                    <>
+                        {preview.suggestedEstimatedStartDate ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                          onClick={() => {
+                              form.setValue("estimatedStartDate", preview.suggestedEstimatedStartDate || "", { shouldDirty: true });
+                              form.setValue("estimatedEndDate", preview.suggestedEstimatedEndDate || "", { shouldDirty: true });
+                            }}
+                          >
+                          Use AI estimated dates
+                          </Button>
+                        ) : null}
+                      </>
+                    }
+                  >
+                  {preview.suggestedEstimatedStartDate &&
+                  preview.suggestedEstimatedEndDate ? (
+                    <div className="rounded-lg border bg-muted/10 p-3 text-sm">
+                      <p className="font-medium">Suggested estimated window</p>
+                      <div className="mt-2 grid gap-2 text-xs text-muted-foreground md:grid-cols-2">
+                        <p>Start: {preview.suggestedEstimatedStartDate}</p>
+                        <p>End: {preview.suggestedEstimatedEndDate}</p>
                       </div>
-                      <FormControl>
-                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="aiSuggestPlanning"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between border-t pt-3">
-                      <div>
-                        <FormLabel className="flex items-center gap-2 text-sm font-medium">
-                          <Sparkles className="size-4 text-primary" />
-                          {t("upload.form.labels.aiSuggestPlanning", { defaultValue: "Suggest sprint plan" })}
-                        </FormLabel>
-                        <p className="text-xs text-muted-foreground">
-                          {t("upload.form.hints.aiSuggestPlanning", {
-                            defaultValue:
-                              "Use AI to propose which backlog tasks to include or exclude based on capacity.",
-                          })}
-                        </p>
+                    </div>
+                  ) : null}
+                  {preview.aiCapacitySignal ? (
+                    <div className="rounded-lg border bg-muted/10 p-3 text-sm">
+                      <p className="font-medium">
+                        Capacity {preview.aiCapacitySignal.committedStoryPoints}/{preview.aiCapacitySignal.sprintCapacity || 0}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Utilization {preview.aiCapacitySignal.utilizationPercent}% · {preview.aiCapacitySignal.riskLevel} risk
+                      </p>
+                      {preview.aiCapacitySignal.recommendations?.length ? (
+                        <ul className="mt-2 list-disc pl-4 text-xs text-muted-foreground">
+                          {preview.aiCapacitySignal.recommendations.map((rec) => (
+                            <li key={rec}>{rec}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {preview.aiPlanningRecommendation ? (
+                    <div className="rounded-lg border bg-muted/10 p-3 text-sm">
+                      <p className="font-medium">Planning recommendation</p>
+                      <p className="text-xs text-muted-foreground">{preview.aiPlanningRecommendation.rationale}</p>
+                      <div className="mt-2 grid gap-2 md:grid-cols-2 text-xs text-muted-foreground">
+                        <p>Include: {preview.aiPlanningRecommendation.includeTaskIds.length}</p>
+                        <p>Exclude: {preview.aiPlanningRecommendation.excludeTaskIds.length}</p>
                       </div>
-                      <FormControl>
-                        <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
+                    </div>
+                  ) : null}
+                </PmAiSuggestionCard>
+              ) : null}
+            </PmAiAssistPanel>
 
             {error !== "" && <ErrorBanner error={error} />}
 
@@ -220,65 +299,6 @@ export default function SprintUploadSheet({ projectId, projectStartDate, project
             {isEdit && sprint?.id ? (
               <SprintAiCapacity projectId={projectId} sprintId={sprint.id} />
             ) : null}
-
-            {/* AI response after creation */}
-            {aiResponse && (aiResponse.aiCapacitySignal || aiResponse.aiPlanningRecommendation) && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-4 space-y-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Sparkles className="size-4 text-primary" />
-                  AI suggestions for the new sprint
-                </div>
-                {aiResponse.aiCapacitySignal && (
-                  <div className="space-y-1 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={resolveRiskBadgeClass(
-                          aiResponse.aiCapacitySignal.riskLevel,
-                        )}
-                      >
-                        {aiResponse.aiCapacitySignal.riskLevel}
-                      </Badge>
-                      <span className="text-muted-foreground">
-                        Utilization {aiResponse.aiCapacitySignal.utilizationPercent}%
-                      </span>
-                    </div>
-                    {aiResponse.aiCapacitySignal.recommendations?.length ? (
-                      <ul className="list-disc pl-5 text-muted-foreground">
-                        {aiResponse.aiCapacitySignal.recommendations.map((rec) => (
-                          <li key={rec}>{rec}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                )}
-                {aiResponse.aiPlanningRecommendation && (
-                  <div className="space-y-1 text-sm">
-                    <p className="font-medium">Planning suggestion</p>
-                    {aiResponse.aiPlanningRecommendation.includeTaskIds?.length ? (
-                      <p className="text-muted-foreground">
-                        Include {aiResponse.aiPlanningRecommendation.includeTaskIds.length} task(s)
-                      </p>
-                    ) : null}
-                    {aiResponse.aiPlanningRecommendation.excludeTaskIds?.length ? (
-                      <p className="text-muted-foreground">
-                        Exclude {aiResponse.aiPlanningRecommendation.excludeTaskIds.length} task(s)
-                      </p>
-                    ) : null}
-                    {aiResponse.aiPlanningRecommendation.rationale && (
-                      <p className="text-xs text-muted-foreground">
-                        {aiResponse.aiPlanningRecommendation.rationale}
-                      </p>
-                    )}
-                  </div>
-                )}
-                <div className="flex justify-end">
-                  <Button size="sm" variant="outline" type="button" onClick={handleClose}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <Button onClick={handleClose} variant="secondary" disabled={isPending} type="button">

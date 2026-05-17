@@ -38,8 +38,8 @@ export default function PlatformAppearanceChangement() {
   });
 
   return (
-    <Card>
-      <CardContent>
+    <Card className="border-border/70 bg-card/95 shadow-sm">
+      <CardContent className="p-6">
         <Form {...form}>
           <form className="space-y-8">
             <FormField

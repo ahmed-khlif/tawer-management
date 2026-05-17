@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   AvatarIndicator,
 } from "@/components/ui/avatar";
 import {
@@ -526,6 +527,9 @@ export function ProjectOverviewTab({ project, permissions, onChangeTab }: Projec
                         >
                           <ItemMedia>
                             <Avatar className="size-8 border bg-muted">
+                              {member.user?.image ? (
+                                <AvatarImage src={member.user.image} alt={displayName} />
+                              ) : null}
                               <AvatarFallback className="bg-primary/10 text-primary text-[11px] font-semibold">
                                 {initials}
                               </AvatarFallback>
@@ -594,6 +598,9 @@ export function ProjectOverviewTab({ project, permissions, onChangeTab }: Projec
                       >
                         <div className="flex items-start gap-3">
                           <Avatar className="size-10 border bg-muted">
+                            {member.user?.image ? (
+                              <AvatarImage src={member.user.image} alt={displayName} />
+                            ) : null}
                             <AvatarFallback className="text-sm font-semibold">
                               {initials}
                             </AvatarFallback>

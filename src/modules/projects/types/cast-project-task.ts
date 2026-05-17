@@ -4,6 +4,7 @@ import {
   ProjectTaskComment,
   ProjectTaskSubTask,
   ProjectTaskDependency,
+  ProjectTaskEpicSummary,
 } from "@/modules/projects/types/project-tasks";
 
 /**
@@ -41,6 +42,55 @@ function coerceText(value: unknown, fallback = ""): string {
   if (typeof value === "string") return value;
   if (typeof value === "number") return String(value);
   return fallback;
+}
+
+function coerceAssignee(
+  value: unknown,
+): { id: string; name?: string; email?: string; image?: string } | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const assignee = value as Record<string, unknown>;
+  const id = coerceId(assignee.id, "assignee.id");
+  if (!id) return undefined;
+  const nestedUser =
+    assignee.user && typeof assignee.user === "object"
+      ? (assignee.user as Record<string, unknown>)
+      : undefined;
+  const name = coerceText(
+    assignee.name ?? assignee.memberName ?? nestedUser?.name,
+    "",
+  );
+  const email = coerceText(assignee.email ?? nestedUser?.email, "");
+  const rawImage =
+    typeof assignee.image === "string"
+      ? assignee.image
+      : typeof nestedUser?.image === "string"
+        ? nestedUser.image
+        : "";
+  const image =
+    rawImage && rawImage !== "null"
+      ? rawImage.startsWith("http")
+        ? rawImage
+        : `${process.env.BACKEND_ADDRESS || ""}${rawImage}`
+      : undefined;
+  return {
+    id,
+    name: name || undefined,
+    email: email || undefined,
+    image,
+  };
+}
+
+function coerceEpic(value: unknown): ProjectTaskEpicSummary | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const epic = value as Record<string, unknown>;
+  const id = coerceId(epic.id, "epic.id");
+  const title = coerceText(epic.title ?? epic.name, "");
+  if (!id || !title) return undefined;
+  return {
+    id,
+    title,
+    color: typeof epic.color === "string" ? epic.color : null,
+  };
 }
 
 export function castProjectTaskToFrontend(raw: ProjectTaskInResponseType): ProjectTaskType {
@@ -117,9 +167,11 @@ export function castProjectTaskToFrontend(raw: ProjectTaskInResponseType): Proje
     progressPercent: raw.progressPercent,
     dueDate: raw.dueDate,
     assigneeId: coerceId(raw.assigneeId, "assigneeId"),
+    assignee: coerceAssignee(raw.assignee),
     reporterId: coerceId(raw.reporterId, "reporterId"),
     milestoneId: coerceId(raw.milestoneId, "milestoneId"),
     epicId: coerceId(raw.epicId, "epicId"),
+    epic: coerceEpic(raw.epic),
     sprintId: coerceId(raw.sprintId, "sprintId"),
     parentTaskId: coerceId(raw.parentTaskId, "parentTaskId"),
     attachments: raw.attachments,

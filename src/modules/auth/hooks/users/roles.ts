@@ -3,6 +3,7 @@ import { UserRoleOnFrontendSide, UserRoleOnBackendSide } from "../../types";
 import retrieveUserRoleOnBackendSides from "../../services/users/user-roles";
 import { useTranslations } from "next-intl";
 import { castRoleFromFrontendToBackend } from "../../utils/user-roles";
+import { hasExecutiveRole } from "../../utils/role-access";
 import useUser from "./use-user";
 
 /**
@@ -18,11 +19,12 @@ import useUser from "./use-user";
 export default function useUserRoles() {
   const t = useTranslations("modules.users.roles");
   const { user } = useUser();
+  const canReadRoleCatalog = hasExecutiveRole(user?.roles);
 
   const { data, isLoading, isError } = useQuery<UserRoleOnFrontendSide[]>({
     queryKey: ["user", "roles", user],
     queryFn: () => retrieveUserRoleOnBackendSides(),
-    enabled: user !== null,
+    enabled: user !== null && canReadRoleCatalog,
     placeholderData: [],
     refetchOnWindowFocus: false,
     refetchOnReconnect: false
@@ -31,7 +33,7 @@ export default function useUserRoles() {
 
   return {
     roles:
-      data && data.length > 0
+      canReadRoleCatalog && data && data.length > 0
         ? data.map((role) => ({
           label: t(role),
           value: castRoleFromFrontendToBackend(role) as UserRoleOnBackendSide

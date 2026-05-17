@@ -52,9 +52,15 @@ export interface EventCalendarProps {
   onEventAdd?: (event: CalendarEventType) => Promise<boolean>;
   onEventUpdate?: (event: CalendarEventType) => Promise<boolean>;
   onEventDelete?: (eventId: string) => Promise<boolean>;
+  onEventSelect?: (event: CalendarEventType) => void;
   className?: string;
   initialView?: CalendarView;
   setDisplayedDateRanges?: (params: { from: Date; to: Date }) => void;
+  hideCreateButton?: boolean;
+  readOnly?: boolean;
+  initialDate?: Date;
+  selectedEventId?: string | null;
+  onSelectedEventClose?: () => void;
 }
 
 export function EventCalendar({
@@ -63,9 +69,15 @@ export function EventCalendar({
   isLoading = false,
   onEventUpdate,
   onEventDelete,
+  onEventSelect,
   className,
   initialView = "month",
-  setDisplayedDateRanges
+  setDisplayedDateRanges,
+  hideCreateButton = false,
+  readOnly = false,
+  initialDate,
+  selectedEventId = null,
+  onSelectedEventClose
 }: EventCalendarProps) {
   const t = useTranslations("modules.events");
 
@@ -73,10 +85,30 @@ export function EventCalendar({
   const { user } = useCurrentUser();
   const userHasCreationPermission = eventType === "personalEvent" ? true : user ? hasPermissions(user.roles, eventType === "meeting" ? "meetingsManagement" : "eventsManagement", "add") : false;
 
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(initialDate ?? new Date());
   const [view, setView] = useState<CalendarView>(initialView);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
+
+  useEffect(() => {
+    if (initialDate) {
+      setCurrentDate(initialDate);
+    }
+  }, [initialDate]);
+
+  useEffect(() => {
+    if (!selectedEventId || readOnly) {
+      return;
+    }
+
+    const matchedEvent = events.find((event) => event.id === selectedEventId);
+    if (!matchedEvent) {
+      return;
+    }
+
+    setSelectedEvent(matchedEvent);
+    setIsEventDialogOpen(true);
+  }, [events, readOnly, selectedEventId]);
 
   useEffect(() => {
     const displayedDays = getDisplayedDaysInCalendar(currentDate, view);
@@ -152,12 +184,21 @@ export function EventCalendar({
   };
 
   const handleEventSelect = (event: CalendarEventType) => {
+    if (onEventSelect) {
+      onEventSelect(event);
+      return;
+    }
+
+    if (readOnly) {
+      return;
+    }
+
     setSelectedEvent(event);
     setIsEventDialogOpen(true);
   };
 
   const handleEventCreate = (startTime: Date) => {
-    if (!userHasCreationPermission) return;
+    if (!userHasCreationPermission || readOnly) return;
     // Snap to 15-minute intervals
     const minutes = startTime.getMinutes();
     const remainder = minutes % 15;
@@ -258,7 +299,9 @@ export function EventCalendar({
           "--week-cells-height": `${WeekCellsHeight}px`
         } as React.CSSProperties
       }>
-      <CalendarDndProvider onEventUpdate={handleEventUpdate}>
+      <CalendarDndProvider
+        onEventUpdate={handleEventUpdate}
+        disabled={readOnly || !onEventUpdate}>
         <div className={cn("flex items-center justify-between p-2 sm:p-4", className)}>
           <div className="flex items-center gap-1 sm:gap-4">
             <Button
@@ -327,22 +370,24 @@ export function EventCalendar({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              className="max-[479px]:aspect-square max-[479px]:p-0!"
-              size="sm"
-              disabled={!userHasCreationPermission}
-              onClick={() => {
-                setSelectedEvent(null); // Ensure we're creating a new event
-                setIsEventDialogOpen(true);
-              }}
-              aria-label={t("calendar.actions.newEvent")}>
-              <PlusIcon className="opacity-60 sm:-ms-1" size={16} aria-hidden="true" />
-              <span className="max-sm:sr-only">
-                {eventType === "meeting"
-                  ? t("calendar.actions.newMeeting")
-                  : t("calendar.actions.newEvent")}
-              </span>
-            </Button>
+            {!hideCreateButton ? (
+              <Button
+                className="max-[479px]:aspect-square max-[479px]:p-0!"
+                size="sm"
+                disabled={!userHasCreationPermission || readOnly}
+                onClick={() => {
+                  setSelectedEvent(null); // Ensure we're creating a new event
+                  setIsEventDialogOpen(true);
+                }}
+                aria-label={t("calendar.actions.newEvent")}>
+                <PlusIcon className="opacity-60 sm:-ms-1" size={16} aria-hidden="true" />
+                <span className="max-sm:sr-only">
+                  {eventType === "meeting"
+                    ? t("calendar.actions.newMeeting")
+                    : t("calendar.actions.newEvent")}
+                </span>
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -380,15 +425,18 @@ export function EventCalendar({
           )}
         </div>}
 
-        <EventDialog
-          event={selectedEvent}
-          isOpen={isEventDialogOpen}
-          onClose={() => {
-            setIsEventDialogOpen(false);
-            setSelectedEvent(null);
-          }}
-          onDelete={handleEventDelete}
-        />
+        {!readOnly ? (
+          <EventDialog
+            event={selectedEvent}
+            isOpen={isEventDialogOpen}
+            onClose={() => {
+              setIsEventDialogOpen(false);
+              setSelectedEvent(null);
+              onSelectedEventClose?.();
+            }}
+            onDelete={handleEventDelete}
+          />
+        ) : null}
       </CalendarDndProvider>
     </div>
   );

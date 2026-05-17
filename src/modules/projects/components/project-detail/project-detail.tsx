@@ -94,6 +94,12 @@ const ProjectBacklog = dynamic(
     loading: () => <Skeleton className="h-96 w-full" />,
   },
 );
+const ProjectCalendarTab = dynamic(
+  () => import("./calendar/project-calendar-tab"),
+  {
+    loading: () => <Skeleton className="h-96 w-full" />,
+  },
+);
 
 interface Props {
   slug: string;
@@ -163,6 +169,7 @@ export default function ProjectDetail({ slug }: Props) {
         label: t("groups.planning", { defaultValue: "Planning" }),
         icon: CalendarRange,
         visible:
+          permissions.canViewCalendar ||
           permissions.canViewMilestone ||
           (isAgile && (permissions.canViewSprint || permissions.canViewEpic)),
         subTabs: [
@@ -183,6 +190,12 @@ export default function ProjectDetail({ slug }: Props) {
             label: t("tabs.epics", { defaultValue: "Epics" }),
             icon: LayoutList,
             visible: isAgile && permissions.canViewEpic,
+          },
+          {
+            value: "calendar",
+            label: t("tabs.calendar", { defaultValue: "Calendar" }),
+            icon: Calendar,
+            visible: permissions.canViewCalendar,
           },
         ].filter((s) => s.visible),
       },
@@ -245,6 +258,7 @@ export default function ProjectDetail({ slug }: Props) {
     sprints: { group: "planning", sub: "sprints" },
     epics: { group: "planning", sub: "epics" },
     milestones: { group: "planning", sub: "milestones" },
+    calendar: { group: "planning", sub: "calendar" },
     members: { group: "members" },
     reminders: { group: "insights", sub: "reminders" },
     analytics: { group: "insights", sub: "analytics" },
@@ -526,7 +540,9 @@ export default function ProjectDetail({ slug }: Props) {
         </TabsContent>
 
         <TabsContent value="planning" className="outline-none!">
-          {activeSub === "sprints" ? (
+          {activeSub === "calendar" ? (
+            <ProjectCalendarTab project={project} permissions={permissions} />
+          ) : activeSub === "sprints" ? (
             <ProjectSprints project={project} />
           ) : activeSub === "epics" ? (
             <ProjectEpics project={project} permissions={permissions} />

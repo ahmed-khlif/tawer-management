@@ -13,7 +13,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ColumnsIcon, FilterIcon, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
+import { AppWindow, ArrowUpDown, ColumnsIcon, FilterIcon, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 import { Button } from "@/components/ui/button"
@@ -43,6 +43,7 @@ import useCurrentUser from "@/modules/auth/hooks/users/use-user"
 import { hasPermissions } from "@/modules/auth/utils/users-permissions"
 import DeletionConfirmationDialog from "@/modules/users/components/deletion/deletion-confirmation-dialog"
 import UploadServiceDialog from "./upload"
+import { EmptyState } from "@/modules/projects/components/shared/empty-state"
 
 interface ServicesListProps {
   limit?: number
@@ -351,7 +352,7 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-card/90 p-3 shadow-sm">
         <div className="flex gap-2">
           <Input
             placeholder={t("filters.searchPlaceholder")}
@@ -414,7 +415,7 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border">
+      <div className="rounded-xl border border-border/70 bg-card/95 shadow-sm">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -438,8 +439,19 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  {t("table.noResults")}
+                <TableCell colSpan={columns.length} className="p-6">
+                  <EmptyState
+                    compact
+                    icon={AppWindow}
+                    message={t("table.noResults")}
+                    description="No services matched the current search or infrastructure filters."
+                    className="py-4"
+                    action={
+                      user && hasPermissions(user.roles, "servicesManagement", "add") ? (
+                        <UploadServiceDialog />
+                      ) : null
+                    }
+                  />
                 </TableCell>
               </TableRow>
             )}
@@ -448,7 +460,7 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-end space-x-2">
+      <div className="flex items-center justify-end space-x-2 rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
         <div className="text-muted-foreground flex-1 text-sm">
           {paginationContent.rich("selected", {
             page: page,

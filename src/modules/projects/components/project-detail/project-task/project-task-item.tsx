@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/tooltip";
 import { AssigneeHoverPill } from "../../shared/assignee-hover-pill";
 import { LabelChips } from "../../shared/label-chips";
+import type { ResolvedAssignee } from "@/modules/projects/utils/resolve-assignee";
 
 interface Props {
   task: ProjectTaskType;
@@ -68,12 +69,36 @@ export default function ProjectTaskItem({
   const typeKey = task.type.toLowerCase();
   const statusBadge = resolveTaskStatusStyle(task.status, customStatusColorByName);
   const statusLabel = (task.status ?? "").replace(/_/g, " ").toLowerCase();
+  const epicBadgeStyle = task.epic?.color
+    ? {
+        borderColor: `${task.epic.color}55`,
+        backgroundColor: `${task.epic.color}14`,
+        color: task.epic.color,
+      }
+    : undefined;
 
   const isAgile = projectType === "AGILE";
   const isCompleted = task.status === "DONE";
   const { visibleAttributes } = useProjectTasksStore();
   const labels = task.labels ?? [];
-  const assignee = resolveAssignee(task.assigneeId, members);
+  const assignee = React.useMemo<ResolvedAssignee | null>(() => {
+    const resolved = resolveAssignee(task.assigneeId, members);
+    if (resolved) return resolved;
+    if (task.assignee?.name) {
+      const tokens = task.assignee.name.trim().split(/\s+/).filter(Boolean);
+      const initials =
+        tokens.length >= 2
+          ? `${tokens[0][0] ?? ""}${tokens[1][0] ?? ""}`
+          : (tokens[0]?.slice(0, 2) ?? "");
+      return {
+        name: task.assignee.name,
+        initials: initials.toUpperCase() || "?",
+        image: task.assignee.image,
+        email: task.assignee.email,
+      };
+    }
+    return null;
+  }, [members, task.assignee?.email, task.assignee?.image, task.assignee?.name, task.assigneeId]);
   const hasStoryPoints =
     typeof task.storyPoints === "number" && task.storyPoints > 0;
 
@@ -154,15 +179,18 @@ export default function ProjectTaskItem({
                 )}
                 {isAgile &&
                   visibleAttributes.epic &&
-                  typeof task.epicId === "string" &&
-                  task.epicId && (
+                  task.epic && (
                     <Badge
                       variant="outline"
-                      className={cn("text-[10px] h-5 gap-1", epicBadgeClasses)}
-                      title={task.epicId}
+                      className={cn(
+                        "text-[10px] h-5 max-w-full gap-1 border-l-2",
+                        epicBadgeClasses,
+                      )}
+                      title={task.epic.title}
+                      style={epicBadgeStyle}
                     >
                       <Layers className="size-2.5" />
-                      {t("epic", { defaultValue: "Epic" })}
+                      <span className="max-w-[180px] truncate">{task.epic.title}</span>
                     </Badge>
                   )}
               </div>
@@ -275,15 +303,18 @@ export default function ProjectTaskItem({
                     </Badge>
                   )}
                 {visibleAttributes.epic &&
-                  typeof task.epicId === "string" &&
-                  task.epicId && (
+                  task.epic && (
                     <Badge
                       variant="outline"
-                      className={cn("text-[10px] h-5 hidden md:flex gap-1", epicBadgeClasses)}
-                      title={task.epicId}
+                      className={cn(
+                        "text-[10px] h-5 hidden md:flex max-w-[220px] gap-1 border-l-2",
+                        epicBadgeClasses,
+                      )}
+                      title={task.epic.title}
+                      style={epicBadgeStyle}
                     >
                       <Layers className="size-2.5" />
-                      {t("epic", { defaultValue: "Epic" })}
+                      <span className="truncate">{task.epic.title}</span>
                     </Badge>
                   )}
                 {visibleAttributes.type && (

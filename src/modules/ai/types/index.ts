@@ -2,6 +2,18 @@ export interface PredictTaskDurationDto {
   taskId: string;
 }
 
+export interface ImproveDescriptionDto {
+  entityType: string;
+  title?: string;
+  description?: string;
+  projectId?: string;
+}
+
+export interface ImproveDescriptionResult {
+  improvedDescription: string;
+  rationale?: string;
+}
+
 export interface SmartAssignmentDto {
   projectId: string;
   taskType: string;

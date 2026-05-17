@@ -8,6 +8,7 @@ import { useEffect } from "react";
 
 interface RichTextEditorProps {
   initialContent?: string;
+  value?: string;
   onChange?: (html: string) => void;
   setContentIsEmpty?: (isEmpty: boolean) => void;
   placeholder?: string;
@@ -18,6 +19,7 @@ interface RichTextEditorProps {
 
 export default function TextEditor({
   initialContent = "",
+  value,
   onChange,
   placeholder = "...",
   className,
@@ -25,7 +27,8 @@ export default function TextEditor({
   setContentIsEmpty,
   disabled = false
 }: RichTextEditorProps) {
-  const { editor, content } = useTextEditor(initialContent, onChange);
+  const externalContent = value ?? initialContent;
+  const { editor, content } = useTextEditor(externalContent, onChange);
 
   useEffect(() => {
     if (setContentIsEmpty && editor) {

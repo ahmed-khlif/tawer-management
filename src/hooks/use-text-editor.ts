@@ -13,7 +13,6 @@ import Color from "@tiptap/extension-color";
 import Text from "@tiptap/extension-text";
 import TextStyle from "@tiptap/extension-text-style";
 import Link from "@tiptap/extension-link";
-import { logger } from "@/lib/logger";
 
 export default function useTextEditor(initialContent: string, onChange?: (html: string) => void) {
   const [content, setContent] = useState(initialContent);
@@ -60,11 +59,15 @@ export default function useTextEditor(initialContent: string, onChange?: (html: 
   });
 
   useEffect(() => {
-    setContent(initialContent);
-    logger.log("is chaning")
-    if (editor)
-      editor.commands.setContent(initialContent)
-  }, [initialContent])
+    const nextContent = initialContent || "";
+    setContent(nextContent);
+    if (!editor) return;
+
+    const currentHtml = editor.getHTML();
+    if (currentHtml !== nextContent) {
+      editor.commands.setContent(nextContent, false);
+    }
+  }, [initialContent, editor]);
 
   return { editor, content };
 }

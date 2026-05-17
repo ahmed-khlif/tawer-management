@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LayoutList, Plus, Search, X, Activity, CheckCircle2, Clock, ShieldAlert, ShieldCheck, ShieldEllipsis, SlidersHorizontal, AlertCircle, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ErrorBanner } from "@/components/error-banner";
@@ -36,6 +36,8 @@ interface ProjectEpicsProps {
 
 export default function ProjectEpics({ project, permissions }: ProjectEpicsProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
@@ -49,6 +51,31 @@ export default function ProjectEpics({ project, permissions }: ProjectEpicsProps
     limit: 50,
   });
   const { deleteEpic } = useEpicUpload(project.id);
+  const selectedEpicId = searchParams.get("epicId");
+
+  useEffect(() => {
+    if (!selectedEpicId) {
+      return;
+    }
+
+    const matchedEpic = (data?.data ?? []).find((epic) => epic.id === selectedEpicId);
+    if (matchedEpic) {
+      setSelectedEpic(matchedEpic);
+    }
+  }, [data?.data, selectedEpicId]);
+
+  const closeSelectedEpic = useCallback(() => {
+    setSelectedEpic(null);
+    if (!selectedEpicId) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("epicId");
+    router.replace(
+      params.size > 0 ? `${pathname}?${params.toString()}` : pathname,
+    );
+  }, [pathname, router, searchParams, selectedEpicId]);
 
   const epics = useMemo(() => {
     let source = data?.data ?? [];
@@ -345,18 +372,18 @@ export default function ProjectEpics({ project, permissions }: ProjectEpicsProps
         projectId={project.id}
         epic={selectedEpic}
         open={!!selectedEpic}
-        onOpenChange={(open) => !open && setSelectedEpic(null)}
+        onOpenChange={(open) => !open && closeSelectedEpic()}
         onEdit={permissions.canEditEpic ? (value) => {
-          setSelectedEpic(null);
+          closeSelectedEpic();
           setEditingEpic(value);
           setSheetOpen(true);
         } : undefined}
         canCreateTask={permissions.canCreateTask}
         canCreateReminder={permissions.canCreateReminder}
         onCreateTask={(value) => {
-          setSelectedEpic(null);
+          closeSelectedEpic();
           router.push(
-            `/dashboard/projects/${project.id}?tab=board&epicId=${value.id}&newTask=1`,
+            `/dashboard/projects/${project.id}?tab=board&sprintId=${value.sprintId}&newTask=1`,
           );
         }}
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslations } from "next-intl";
@@ -11,9 +11,10 @@ import {
   CalendarClock,
   CheckCircle2,
   Mail,
+  Plus,
   Send,
   ShieldCheck,
-  Users,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,13 +35,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import useProjectInvitations from "../../../hooks/members/use-project-invitations";
 import { cn } from "@/lib/utils";
 
 const inviteSchema = z.object({
-  emails: z.string().min(1, "Please enter at least one email"),
+  emails: z
+    .array(
+      z.object({
+        value: z.string().trim().email("Please enter a valid email"),
+      }),
+    )
+    .min(1, "Please add at least one email"),
   isManager: z.boolean(),
   expiresInDays: z.coerce.number().min(1).max(30).optional(),
 });
@@ -53,6 +59,8 @@ interface InviteByEmailDialogProps {
   projectId: string;
 }
 
+const EMPTY_EMAIL_ROW = { value: "" };
+
 export function InviteByEmailDialog({
   open,
   onOpenChange,
@@ -63,51 +71,70 @@ export function InviteByEmailDialog({
 
   const form = useForm<InviteForm>({
     resolver: zodResolver(inviteSchema),
-    defaultValues: { emails: "", isManager: false, expiresInDays: 7 },
+    defaultValues: {
+      emails: [EMPTY_EMAIL_ROW],
+      isManager: false,
+      expiresInDays: 7,
+    },
+    mode: "onChange",
   });
 
-  const emailsValue = form.watch("emails");
-  const entries = React.useMemo(
-    () =>
-      emailsValue
-        .split(/[\s,;]+/)
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0),
-    [emailsValue],
-  );
+  const { fields, append, remove, replace } = useFieldArray({
+    control: form.control,
+    name: "emails",
+  });
 
+  const emailRows = form.watch("emails");
+  const normalizedEntries = React.useMemo(
+    () =>
+      (emailRows ?? [])
+        .map((entry) => entry?.value?.trim() ?? "")
+        .filter((entry) => entry.length > 0),
+    [emailRows],
+  );
   const validEmails = React.useMemo(
-    () => entries.filter((entry) => z.string().email().safeParse(entry).success),
-    [entries],
+    () =>
+      normalizedEntries.filter((entry) =>
+        z.string().email().safeParse(entry).success,
+      ),
+    [normalizedEntries],
   );
   const uniqueEmails = React.useMemo(
     () => Array.from(new Set(validEmails.map((email) => email.toLowerCase()))),
     [validEmails],
   );
-  const invalidEmails = React.useMemo(
-    () => entries.filter((entry) => !z.string().email().safeParse(entry).success),
-    [entries],
+  const invalidFilledEmails = React.useMemo(
+    () =>
+      normalizedEntries.filter(
+        (entry) => !z.string().email().safeParse(entry).success,
+      ),
+    [normalizedEntries],
   );
   const duplicateCount = validEmails.length - uniqueEmails.length;
 
   React.useEffect(() => {
     if (!open) {
-      form.reset({ emails: "", isManager: false, expiresInDays: 7 });
+      form.reset({
+        emails: [EMPTY_EMAIL_ROW],
+        isManager: false,
+        expiresInDays: 7,
+      });
     }
   }, [form, open]);
 
   async function handleSubmit(data: InviteForm) {
-    if (invalidEmails.length > 0) {
-      form.setError("emails", {
-        message: `Invalid emails: ${invalidEmails.slice(0, 2).join(", ")}${invalidEmails.length > 2 ? "..." : ""}`,
-      });
-      return;
-    }
+    const uniquePayloadEmails = Array.from(
+      new Set(
+        data.emails
+          .map((entry) => entry.value.trim().toLowerCase())
+          .filter(Boolean),
+      ),
+    );
 
     const failedEmails: string[] = [];
     let sentCount = 0;
 
-    for (const email of uniqueEmails) {
+    for (const email of uniquePayloadEmails) {
       try {
         await createInvitation(
           {
@@ -137,11 +164,15 @@ export function InviteByEmailDialog({
           ? `Could not invite ${failedEmails[0]}`
           : `${failedEmails.length} invitations could not be sent`,
       );
-      form.setValue("emails", failedEmails.join("\n"));
+      replace(failedEmails.map((email) => ({ value: email })));
       return;
     }
 
-    form.reset();
+    form.reset({
+      emails: [EMPTY_EMAIL_ROW],
+      isManager: false,
+      expiresInDays: 7,
+    });
     onOpenChange(false);
   }
 
@@ -160,57 +191,96 @@ export function InviteByEmailDialog({
             <DialogDescription>
               {t("membersList.inviteDescription", {
                 defaultValue:
-                  "Invite team members to collaborate on this project. Add one or many emails and we'll handle them one by one.",
+                  "Invite team members to collaborate on this project. Enter one email per field and use the plus button to add another person.",
               })}
             </DialogDescription>
           </DialogHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} className="mt-6 space-y-6">
-              <FormField
-                control={form.control}
-                name="emails"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center justify-between">
-                      <span>
-                        {t("membersList.emailLabel", {
-                          defaultValue: "Email addresses",
-                        })}
-                      </span>
-                      {uniqueEmails.length > 0 ? (
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="secondary" className="font-normal">
-                            {uniqueEmails.length} ready
-                          </Badge>
-                          {duplicateCount > 0 ? (
-                            <Badge variant="outline" className="font-normal">
-                              {duplicateCount} duplicate
-                              {duplicateCount > 1 ? "s" : ""}
-                            </Badge>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Textarea
-                          placeholder="email@example.com, user@work.com..."
-                          className="min-h-[130px] resize-none pr-10 pt-3"
-                          {...field}
-                        />
-                        <div className="absolute right-3 top-3 text-muted-foreground">
-                          <Users className="size-4" />
-                        </div>
-                      </div>
-                    </FormControl>
-                    <p className="text-[11px] text-muted-foreground">
-                      Separate multiple emails with commas, semicolons, or new lines.
-                    </p>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className="mt-6 space-y-6"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <FormLabel>
+                    {t("membersList.emailLabel", {
+                      defaultValue: "Email addresses",
+                    })}
+                  </FormLabel>
+                  <div className="flex items-center gap-1.5">
+                    {uniqueEmails.length > 0 ? (
+                      <Badge variant="secondary" className="font-normal">
+                        {uniqueEmails.length} ready
+                      </Badge>
+                    ) : null}
+                    {duplicateCount > 0 ? (
+                      <Badge variant="outline" className="font-normal">
+                        {duplicateCount} duplicate
+                        {duplicateCount > 1 ? "s" : ""}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="space-y-3 rounded-2xl border bg-card p-4">
+                  {fields.map((field, index) => (
+                    <FormField
+                      key={field.id}
+                      control={form.control}
+                      name={`emails.${index}.value`}
+                      render={({ field: inputField }) => (
+                        <FormItem>
+                          <div className="flex items-start gap-2">
+                            <FormControl>
+                              <div className="relative flex-1">
+                                <Input
+                                  {...inputField}
+                                  placeholder="email@example.com"
+                                  className="h-11 pr-10"
+                                />
+                                <Mail className="absolute right-3 top-3.5 size-4 text-muted-foreground" />
+                              </div>
+                            </FormControl>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="size-11 shrink-0"
+                              onClick={() => {
+                                if (fields.length === 1) {
+                                  form.setValue(`emails.${index}.value`, "");
+                                  form.clearErrors(`emails.${index}.value`);
+                                  return;
+                                }
+                                remove(index);
+                              }}
+                              aria-label="Remove email"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2 border-dashed"
+                    onClick={() => append(EMPTY_EMAIL_ROW)}
+                  >
+                    <Plus className="size-4" />
+                    Add another email
+                  </Button>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Each row accepts one email address only.
+                </p>
+              </div>
 
               <div className="grid gap-4 rounded-2xl border bg-muted/25 p-4 sm:grid-cols-2">
                 <FormField
@@ -296,7 +366,7 @@ export function InviteByEmailDialog({
                 />
               </div>
 
-              {(uniqueEmails.length > 0 || invalidEmails.length > 0) ? (
+              {(uniqueEmails.length > 0 || invalidFilledEmails.length > 0) && (
                 <div className="space-y-3 rounded-2xl border bg-card p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     {uniqueEmails.length > 0 ? (
@@ -306,13 +376,13 @@ export function InviteByEmailDialog({
                         {uniqueEmails.length > 1 ? "s" : ""}
                       </Badge>
                     ) : null}
-                    {invalidEmails.length > 0 ? (
+                    {invalidFilledEmails.length > 0 ? (
                       <Badge
                         variant="outline"
                         className="gap-1 border-destructive/30 bg-destructive/10 text-destructive"
                       >
                         <AlertCircle className="size-3.5" />
-                        {invalidEmails.length} invalid
+                        {invalidFilledEmails.length} invalid
                       </Badge>
                     ) : null}
                   </div>
@@ -335,14 +405,8 @@ export function InviteByEmailDialog({
                       ) : null}
                     </div>
                   ) : null}
-
-                  {invalidEmails.length > 0 ? (
-                    <div className="text-xs text-destructive">
-                      Fix invalid addresses before sending invitations.
-                    </div>
-                  ) : null}
                 </div>
-              ) : null}
+              )}
 
               <div className="rounded-2xl border border-dashed bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
                 Invitations are processed one by one, so one failed email will not block the others.

@@ -32,6 +32,6 @@ export default function useWorkSession() {
   return {
     workSession: workSession,
     isLoading: data === undefined || isLoading || sessionSetupIsLoading.current,
-    isError: isError || data === null
+    isError
   };
 }

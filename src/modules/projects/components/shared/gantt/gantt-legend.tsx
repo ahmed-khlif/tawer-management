@@ -2,7 +2,7 @@
 
 export default function GanttLegend() {
   return (
-    <div className="flex items-center gap-6 border-t border-border bg-background px-4 py-2 text-xs text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-6 border-t border-border bg-background px-4 py-2 text-xs text-muted-foreground">
       <div className="flex items-center gap-1.5">
         <div
           className="size-2 rounded-full"

@@ -14,9 +14,17 @@ function castProjectMemberToFrontend(
         id?: string;
         name?: string;
         email?: string;
+        image?: string | null;
         roles?: Array<string | { type?: string }>;
       }
     | undefined;
+
+  const normalizedImage =
+    typeof rawUser?.image === "string" && rawUser.image && rawUser.image !== "null"
+      ? rawUser.image.startsWith("http")
+        ? rawUser.image
+        : `${process.env.BACKEND_ADDRESS || ""}${rawUser.image}`
+      : undefined;
 
   const memberName =
     (typeof member.memberName === "string" && member.memberName) ||
@@ -51,7 +59,7 @@ function castProjectMemberToFrontend(
     projectId: member.projectId,
     user:
       rawUser && typeof rawUser.id === "string" && typeof rawUser.name === "string"
-        ? { id: rawUser.id, name: rawUser.name, email: rawUser.email }
+        ? { id: rawUser.id, name: rawUser.name, email: rawUser.email, image: normalizedImage }
         : { id: member.userId, name: memberName || member.userId },
   };
 }

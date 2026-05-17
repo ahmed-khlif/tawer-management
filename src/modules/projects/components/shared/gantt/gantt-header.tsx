@@ -83,19 +83,19 @@ export default function GanttHeader({ viewport }: GanttHeaderProps) {
   }, [viewport.startDate, viewport.endDate]);
 
   return (
-    <div className="bg-background flex flex-col w-fit border-border/30">
+    <div className="flex w-fit flex-col bg-background">
       {/* Month tier */}
       <div
-        className="flex border-b border-border/30"
+        className="flex border-b border-border/40 bg-muted/25"
         style={{ width: viewport.totalWidth, height: 28 }}
       >
         {columns.months.map((col) => (
           <div
             key={col.date.toISOString()}
             className="flex items-center border-r border-border/30 px-3 py-1"
-              style={{ width: col.colSpan * viewport.pixelsPerDay }}
+            style={{ width: col.colSpan * viewport.pixelsPerDay }}
           >
-            <span className="text-[10px] font-semibold text-muted-foreground">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               {col.label}
             </span>
           </div>
@@ -103,13 +103,13 @@ export default function GanttHeader({ viewport }: GanttHeaderProps) {
       </div>
 
       {/* Second tier: Days or Weeks */}
-      <div className="flex" style={{ width: viewport.totalWidth, height: 28 }}>
+      <div className="flex bg-background" style={{ width: viewport.totalWidth, height: 28 }}>
         {viewport.zoom === "month" ? (
           columns.weeks.map((col) => (
             <div
               key={col.date.toISOString()}
-              className="flex items-center justify-center border-r border-border/30 py-1 relative bg-transparent"
-            style={{ width: col.colSpan * viewport.pixelsPerDay }}
+              className="relative flex items-center justify-center border-r border-border/30 py-1"
+              style={{ width: col.colSpan * viewport.pixelsPerDay }}
             >
               <span className="text-[10px] leading-none text-muted-foreground">
                 {col.label}
@@ -121,8 +121,9 @@ export default function GanttHeader({ viewport }: GanttHeaderProps) {
             <div
               key={col.date.toISOString()}
               className={cn(
-                "flex items-center justify-center border-r border-border/30 py-1 relative",
+                "relative flex items-center justify-center border-r border-border/30 py-1",
                 col.isWeekend ? "bg-muted/30" : "bg-transparent",
+                col.isToday && "bg-primary/8",
               )}
               style={{ width: viewport.pixelsPerDay }}
             >
@@ -131,7 +132,7 @@ export default function GanttHeader({ viewport }: GanttHeaderProps) {
                   className={cn(
                     "text-[10px] leading-none",
                     col.isToday
-                      ? "text-primary font-semibold"
+                      ? "font-semibold text-primary"
                       : col.isWeekend
                         ? "text-muted-foreground/50"
                         : "text-muted-foreground",

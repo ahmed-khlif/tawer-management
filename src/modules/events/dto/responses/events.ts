@@ -19,6 +19,7 @@ export function castToCalendarEventType(event: CalendarEventInResponseType): Cal
     startDate: new Date(event.startTime),
     endDate: new Date(event.endTime || event.startTime),
 
+    projectId: event.projectId,
     toAllUsers: event.toAllUsers,
     createdById: event.createdById,
   };

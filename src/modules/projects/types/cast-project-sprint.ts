@@ -2,6 +2,7 @@ import {
   SprintInResponseType,
   SprintType,
   SprintContent,
+  SprintEpicBreakdown,
 } from "@/modules/projects/types/project-sprints";
 
 export function castSprintToFrontend(raw: SprintInResponseType): SprintType {
@@ -44,6 +45,16 @@ export function castSprintToFrontend(raw: SprintInResponseType): SprintType {
       status: task.status,
       labels: task.labels,
     })),
+    epicBreakdown: (raw.epicBreakdown || []).map(
+      (epic): SprintEpicBreakdown => ({
+        id: epic.id,
+        title: epic.title,
+        color: epic.color ?? null,
+        taskCount: epic.taskCount,
+        completedTaskCount: epic.completedTaskCount,
+        progress: epic.progress,
+      }),
+    ),
     createdAt: new Date(raw.createdAt),
     updatedAt: new Date(raw.updatedAt),
   };

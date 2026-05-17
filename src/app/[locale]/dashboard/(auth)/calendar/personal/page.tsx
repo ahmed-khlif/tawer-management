@@ -1,7 +1,6 @@
 import { generateMeta } from "@/lib/utils";
 import { Metadata } from "next";
-
-import EventCalendarApp from "@/modules/events/components/calendar/event-calendar-app";
+import CalendarPageShell from "@/modules/events/components/calendar/calendar-page-shell";
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateMeta({
@@ -13,5 +12,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function Page() {
-  return <EventCalendarApp type="personalEvent" />;
+  return <CalendarPageShell type="personalEvent" variant="personalEvent" />;
 }

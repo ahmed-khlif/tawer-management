@@ -13,22 +13,22 @@ export default function GanttTodayLine({
 
   return (
     <div
-      className="absolute top-0 z-20 pointer-events-none"
+      className="pointer-events-none absolute top-0 z-20"
       style={{ left: position }}
     >
-      {/* TODAY label pill */}
-      <div className="absolute -top-5 -translate-x-1/2 rounded-sm px-1.5 py-0.5 text-[9px] font-semibold whitespace-nowrap bg-destructive text-destructive-foreground">
+      <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap rounded-full bg-destructive px-2 py-0.5 text-[9px] font-semibold text-destructive-foreground shadow-sm">
         TODAY
       </div>
-      {/* Vertical line */}
       <div
         className="w-px"
         style={{
           height: totalHeight,
           backgroundColor: "var(--pm-progress-fill-overdue)",
-          opacity: 0.7,
+          opacity: 0.78,
+          boxShadow: "0 0 10px hsl(var(--destructive) / 0.25)",
         }}
       />
+      <div className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rounded-full bg-destructive shadow-sm" />
     </div>
   );
 }

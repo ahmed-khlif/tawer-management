@@ -14,6 +14,7 @@ export interface CalendarEventRequestType {
   }[];
   toAllUsers?: boolean;
   participantsIds?: string[];
+  projectId?: string;
   startTime: string;
   endTime: string;
   color?: EventColorOnBackendSide;
@@ -32,6 +33,7 @@ export interface CalendarEventType {
   endDate: Date;
 
   participantsIds?: string[];
+  projectId?: string;
 
   toAllUsers?: boolean;
 
@@ -50,6 +52,7 @@ export interface CalendarEventInResponseType {
   endTime?: string;
 
   participantsIds?: string[];
+  projectId?: string;
   toAllUsers?: boolean;
   createdById: string;
 }

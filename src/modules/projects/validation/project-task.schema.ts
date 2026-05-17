@@ -22,7 +22,6 @@ export const getProjectTaskFormSchema = ({ t }: Params) =>
     dueDate: z.string().optional(),
     assigneeId: z.string().optional(),
     milestoneId: z.string().optional(),
-    epicId: z.string().optional(),
     sprintId: z.string().optional(),
     parentTaskId: z.string().optional(),
     aiSuggestAssignee: z.boolean().optional(),

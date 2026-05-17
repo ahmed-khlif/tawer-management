@@ -22,6 +22,7 @@ export function castToCalendarEventRequestType(
 
   if (event.allUsers !== undefined) uploadedEvent.toAllUsers = event.allUsers;
   if (event.participantsId !== undefined) uploadedEvent.participantsIds = event.participantsId;
+  if (event.projectId) uploadedEvent.projectId = event.projectId;
 
   if (event.description !== undefined) uploadedEvent.content[0].description = event.description;
   if (event.color) uploadedEvent.color = castToEventColorRequestType(event.color);
@@ -47,6 +48,7 @@ export function castToFromCalendarEventTypeToCalendarEventRequestType(
 
   if (event.toAllUsers) uploadedEvent.toAllUsers = event.toAllUsers;
   if (event.participantsIds) uploadedEvent.participantsIds = event.participantsIds;
+  if (event.projectId) uploadedEvent.projectId = event.projectId;
 
   return uploadedEvent;
 }

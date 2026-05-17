@@ -2,6 +2,7 @@
 import { useEffect } from "react";
 import { RiDeleteBinLine } from "@remixicon/react";
 import { useTranslations } from "next-intl";
+import { useQuery } from "@tanstack/react-query";
 
 import type { CalendarEventType, EventColor } from ".";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useEventStore } from "../../store/events";
 import useEventUpload from "../../hooks/event-actions/use-event-upload";
 import UsersExtractionInput from "@/modules/users/components/users-extraction-input";
@@ -32,6 +40,7 @@ import getEventTailwindColor from "../../utils/event-colors";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import TimeInput from "@/components/time-input";
+import retrieveProjects from "@/modules/projects/services/api/projects";
 
 interface EventDialogProps {
   event: CalendarEventType | null;
@@ -53,6 +62,19 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
     type: eventType || "personalEvent",
     onSuccess: onClose
   });
+  const projectsQuery = useQuery({
+    queryKey: ["event-project-options"],
+    queryFn: async () => {
+      const result = await retrieveProjects({
+        page: 1,
+        limit: 100,
+        isArchived: false,
+      });
+      return result?.data ?? [];
+    },
+    enabled: isOpen && eventType !== "personalEvent",
+    staleTime: 5 * 60 * 1000,
+  });
 
   const watchAllUsers = form.watch("allUsers");
 
@@ -65,6 +87,7 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
           location: event.location || "",
           startTime: event.startDate.toISOString(),
           endTime: event.endDate?.toISOString(),
+          projectId: event.projectId || "none",
           color: (event.color as any) || "sky",
           allUsers: event.toAllUsers || false,
           participantsId: event.participantsIds // Map your existing participants here if available
@@ -80,6 +103,7 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
           location: "",
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString(),
+          projectId: "none",
           color: "sky",
           allUsers: false,
           participantsId: []
@@ -133,6 +157,42 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
                 label={t("dialog.fields.participants")}
               />
             )}
+
+            {eventType !== "personalEvent" ? (
+              <FormField
+                control={form.control}
+                name="projectId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project context</FormLabel>
+                    <Select
+                      value={field.value || "none"}
+                      onValueChange={(value) =>
+                        field.onChange(value === "none" ? "" : value)
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a project (optional)" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No linked project</SelectItem>
+                        {(projectsQuery.data ?? []).map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Link this meeting or event to a project so it appears in the PM calendar too.
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
 
             <TimeInput inputName="startTime" dateLabel={t("dialog.fields.startDate")} timeLabel={t("dialog.fields.startTime")} />
 

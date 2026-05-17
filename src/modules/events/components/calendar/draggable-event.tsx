@@ -32,7 +32,7 @@ export function DraggableEvent({
   isLastDay = true,
   "aria-hidden": ariaHidden
 }: DraggableEventProps) {
-  const { activeId } = useCalendarDnd();
+  const { activeId, disabled } = useCalendarDnd();
   const elementRef = useRef<HTMLDivElement>(null);
   const [dragHandlePosition, setDragHandlePosition] = useState<{
     x: number;
@@ -46,6 +46,7 @@ export function DraggableEvent({
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `${event.id}-${view}`,
+    disabled,
     data: {
       event,
       view,

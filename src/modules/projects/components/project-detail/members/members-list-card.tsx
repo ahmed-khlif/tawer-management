@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   AvatarIndicator,
 } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -119,6 +120,9 @@ export function MembersListCard({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Avatar className="size-9 border bg-muted">
+                          {member.user?.image ? (
+                            <AvatarImage src={member.user.image} alt={displayName} />
+                          ) : null}
                           <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
                             {initials}
                           </AvatarFallback>

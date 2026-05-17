@@ -124,6 +124,7 @@ export function buildGanttRows(
   const rootTasksByEpic = new Map<string, GanttTask[]>();
   const childTasksByParent = new Map<string, GanttTask[]>();
   const unassignedRootTasks: GanttTask[] = [];
+  const epicsBySprint = new Map<string, GanttEpic[]>();
 
   for (const task of tasks) {
     if (task.parentTaskId) {
@@ -150,6 +151,12 @@ export function buildGanttRows(
     }
   }
 
+  for (const epic of epics) {
+    const sprintEpics = epicsBySprint.get(epic.sprintId) ?? [];
+    sprintEpics.push(epic);
+    epicsBySprint.set(epic.sprintId, sprintEpics);
+  }
+
   let sprintIndex = 1;
   for (const sprint of sprints) {
     const sprintRowId = `sprint-${sprint.id}`;
@@ -166,9 +173,7 @@ export function buildGanttRows(
         ? Math.round((doneTasks.length / sprintTasks.length) * 100)
         : 0;
 
-    const epicIds = [
-      ...new Set(sprintRootTasks.map((task) => task.epicId).filter(Boolean)),
-    ] as string[];
+    const sprintEpics = epicsBySprint.get(sprint.id) ?? [];
 
     let sprintStart = sprint.startDate ? new Date(sprint.startDate) : undefined;
     let sprintEnd = sprint.endDate ? new Date(sprint.endDate) : undefined;
@@ -204,7 +209,7 @@ export function buildGanttRows(
       itemTypeLabel: "Sprint",
       depth: 0,
       isCollapsed: collapsedIds.has(sprintRowId),
-      isCollapsible: sprintTasks.length > 0 || epicIds.length > 0,
+      isCollapsible: sprintTasks.length > 0 || sprintEpics.length > 0,
       startDate: sprintStart,
       endDate: sprintEnd,
       color: null,
@@ -221,9 +226,7 @@ export function buildGanttRows(
 
     if (collapsedIds.has(sprintRowId)) continue;
 
-    for (const epicId of epicIds) {
-      const epic = epics.find((item) => item.id === epicId);
-      if (!epic) continue;
+    for (const epic of sprintEpics) {
       pushEpicRow(
         rows,
         epic,
@@ -239,24 +242,6 @@ export function buildGanttRows(
     for (const task of directTasks) {
       pushTaskRow(rows, task, sprintRowId, 1, childTasksByParent, collapsedIds);
     }
-  }
-
-  const sprintEpicIds = new Set<string>();
-  for (const task of tasks) {
-    if (task.sprintId && task.epicId) sprintEpicIds.add(task.epicId);
-  }
-
-  for (const epic of epics) {
-    if (sprintEpicIds.has(epic.id)) continue;
-    pushEpicRow(
-      rows,
-      epic,
-      null,
-      0,
-      collapsedIds,
-      rootTasksByEpic,
-      childTasksByParent,
-    );
   }
 
   for (const milestone of milestones) {
@@ -339,6 +324,27 @@ function pushEpicRow(
       ? Math.round((doneTasks.length / epicTasks.length) * 100)
       : 0;
 
+  let epicStart = epic.startDate ? new Date(epic.startDate) : undefined;
+  let epicEnd = epic.endDate ? new Date(epic.endDate) : undefined;
+
+  if (!epicStart || Number.isNaN(epicStart.getTime())) {
+    const validStarts = epicTasks
+      .map((task) => resolveTaskStartDate(task))
+      .filter((date): date is Date => !!date && !Number.isNaN(date.getTime()));
+    epicStart = validStarts.length
+      ? new Date(Math.min(...validStarts.map((date) => date.getTime())))
+      : new Date();
+  }
+
+  if (!epicEnd || Number.isNaN(epicEnd.getTime())) {
+    const validEnds = epicTasks
+      .map((task) => resolveTaskEndDate(task))
+      .filter((date): date is Date => !!date && !Number.isNaN(date.getTime()));
+    epicEnd = validEnds.length
+      ? new Date(Math.max(...validEnds.map((date) => date.getTime())))
+      : addDays(epicStart, 7);
+  }
+
   rows.push({
     id: epicRowId,
     type: "epic",
@@ -347,9 +353,9 @@ function pushEpicRow(
     depth,
     isCollapsed: collapsedIds.has(epicRowId),
     isCollapsible: epicRootTasks.length > 0,
-    startDate: epic.startDate ? new Date(epic.startDate) : new Date(),
-    endDate: epic.endDate ? new Date(epic.endDate) : addDays(new Date(), 7),
-    color: null,
+    startDate: epicStart,
+    endDate: epicEnd,
+    color: epic.color ?? null,
     status: progress === 100 ? "DONE" : progress > 0 ? "IN_PROGRESS" : "TODO",
     statusLabel:
       progress === 100 ? "Done" : progress > 0 ? "In Progress" : "Todo",

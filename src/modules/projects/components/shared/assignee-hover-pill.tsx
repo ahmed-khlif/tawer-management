@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   AvatarIndicator,
 } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +48,9 @@ export function AssigneeHoverPill({
           onClick={(e) => e.stopPropagation()}
         >
           <Avatar className={cn(avatarSizeClass, "border bg-muted text-[10px]")}>
+            {assignee.image ? (
+              <AvatarImage src={assignee.image} alt={assignee.name} />
+            ) : null}
             <AvatarFallback className="text-[10px] font-semibold">
               {assignee.initials || "?"}
             </AvatarFallback>
@@ -68,6 +72,9 @@ export function AssigneeHoverPill({
       <HoverCardContent className="w-64 p-3" align="end">
         <div className="flex items-start gap-3">
           <Avatar className="size-10 border bg-muted">
+            {assignee.image ? (
+              <AvatarImage src={assignee.image} alt={assignee.name} />
+            ) : null}
             <AvatarFallback className="text-sm font-semibold">
               {assignee.initials || "?"}
             </AvatarFallback>

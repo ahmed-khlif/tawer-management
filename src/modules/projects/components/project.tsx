@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   AvatarIndicator,
 } from "@/components/ui/avatar";
 import {
@@ -436,6 +437,9 @@ export default function ProjectContainer({
               <Tooltip key={member.id}>
                 <TooltipTrigger asChild>
                   <Avatar className="size-7 border-2 border-card bg-muted">
+                    {member.user?.image ? (
+                      <AvatarImage src={member.user.image} alt={name} />
+                    ) : null}
                     <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-semibold">
                       {getInitials(name)}
                     </AvatarFallback>

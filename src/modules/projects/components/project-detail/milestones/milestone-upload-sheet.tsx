@@ -1,11 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Sparkles } from "lucide-react";
+import * as React from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Form,
   FormControl,
@@ -17,16 +17,18 @@ import {
 import { Input } from "@/components/ui/input";
 import TimeInput from "@/components/time-input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import useMilestoneUpload from "@/modules/projects/hooks/milestones/use-milestone-upload";
 import { Milestone } from "@/modules/projects/types/project-milestones";
-import { resolveRiskBadgeClass } from "@/modules/projects/utils/badges/project-task-badges";
 import {
   createMilestoneSchema,
   CreateMilestoneSchema,
 } from "@/modules/projects/validation/milestone.schema";
 import { TaskSelector } from "@/modules/projects/components/shared/task-selector";
+import PmAiDescriptionAssist from "@/modules/projects/components/shared/pm-ai-description-assist";
+import { previewMilestoneAi } from "@/modules/projects/services/api/project-ai-preview";
+import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
+import type { MilestoneAiPreviewResult } from "@/modules/projects/types/project-ai-preview";
 
 interface MilestoneUploadSheetProps {
   projectId: string;
@@ -53,9 +55,10 @@ export default function MilestoneUploadSheet({
   open,
   onOpenChange,
 }: MilestoneUploadSheetProps) {
-  const { createMilestone, updateMilestone, aiResponse, clearAiResponse } =
+  const { createMilestone, updateMilestone, clearAiResponse } =
     useMilestoneUpload(projectId);
   const isEditing = !!milestone;
+  const [preview, setPreview] = React.useState<MilestoneAiPreviewResult | null>(null);
 
   const form = useForm<CreateMilestoneSchema>({
     resolver: zodResolver(createMilestoneSchema),
@@ -87,31 +90,40 @@ export default function MilestoneUploadSheet({
       taskIds: values.taskIds,
     };
 
-    let result: Milestone;
     if (isEditing && milestone) {
-      result = await updateMilestone.mutateAsync({
+      await updateMilestone.mutateAsync({
         milestoneId: milestone.id,
         data: payload,
       });
     } else {
-      result = await createMilestone.mutateAsync(payload);
+      await createMilestone.mutateAsync(payload);
     }
 
-    const hasAi = !!(
-      result?.aiRiskLevel ||
-      (result?.aiRecommendations && result.aiRecommendations.length > 0) ||
-      result?.aiDueDateSuggestion
-    );
-
-    if (!values.aiSuggestDueDate || !hasAi) {
-      onOpenChange(false);
-    }
+    onOpenChange(false);
   });
 
   const handleClose = () => {
     clearAiResponse();
+    setPreview(null);
     onOpenChange(false);
   };
+
+  const watchedName = form.watch("name");
+  const watchedDescription = form.watch("description");
+  const watchedDueDate = form.watch("dueDate");
+  const watchedTaskIds = form.watch("taskIds");
+  const canSuggestDueDate = !!watchedName?.trim();
+
+  const previewMutation = useMutation({
+    mutationFn: () =>
+      previewMilestoneAi(projectId, {
+        name: watchedName.trim(),
+        description: watchedDescription || undefined,
+        dueDate: watchedDueDate || undefined,
+        taskIds: watchedTaskIds?.length ? watchedTaskIds : undefined,
+      }),
+    onSuccess: (response) => setPreview(response),
+  });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -145,6 +157,13 @@ export default function MilestoneUploadSheet({
                   <FormControl>
                     <Textarea rows={4} placeholder="What should be delivered?" {...field} />
                   </FormControl>
+                  <PmAiDescriptionAssist
+                    entityType="MILESTONE"
+                    projectId={projectId}
+                    title={form.watch("name")}
+                    description={field.value}
+                    onApply={(value) => form.setValue("description", value, { shouldDirty: true })}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -177,72 +196,62 @@ export default function MilestoneUploadSheet({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="aiSuggestDueDate"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-md border bg-muted/40 p-4">
-                  <div>
-                    <FormLabel className="flex items-center gap-2 text-sm font-medium">
-                      <Sparkles className="size-4 text-primary" />
-                      Suggest due date &amp; risk
-                    </FormLabel>
-                    <p className="text-xs text-muted-foreground">
-                      Use AI to recommend a due date and warn about critical-path or anomaly
-                      risks for this milestone.
+            <PmAiAssistPanel
+              title="AI Milestone Assist"
+              description="Get a due-date recommendation once the milestone has enough context."
+              actions={[
+                {
+                  id: "milestone-due-date",
+                  label: "Suggest due date",
+                  onClick: () => previewMutation.mutate(),
+                  disabled: !canSuggestDueDate,
+                  hint: "Add a milestone name first.",
+                  loading: previewMutation.isPending,
+                  priority: !watchedDueDate,
+                },
+              ]}
+            >
+              {preview ? (
+                <PmAiSuggestionCard
+                  title="Due date suggestion"
+                  badge={preview.aiRiskLevel}
+                  onDismiss={() => setPreview(null)}
+                  footer={
+                    preview.aiDueDateSuggestion?.suggestedDueDate ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          form.setValue("dueDate", preview.aiDueDateSuggestion?.suggestedDueDate || "", {
+                            shouldDirty: true,
+                          })
+                        }
+                      >
+                        Apply due date
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {preview.aiDueDateSuggestion?.suggestedDueDate ? (
+                    <p className="text-sm font-medium">
+                      {new Date(preview.aiDueDateSuggestion.suggestedDueDate).toLocaleString()}
                     </p>
-                  </div>
-                  <FormControl>
-                    <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            {aiResponse && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-4 space-y-2 text-sm">
-                <div className="flex items-center gap-2 font-medium">
-                  <Sparkles className="size-4 text-primary" />
-                  AI insights for this milestone
-                </div>
-                {aiResponse.aiRiskLevel && (
-                  <div>
-                    <span className="text-muted-foreground">Risk level: </span>
-                    <Badge
-                      variant="outline"
-                      className={resolveRiskBadgeClass(aiResponse.aiRiskLevel)}
-                    >
-                      {aiResponse.aiRiskLevel}
-                    </Badge>
-                  </div>
-                )}
-                {aiResponse.aiDueDateSuggestion?.suggestedDueDate && (
-                  <p>
-                    <span className="text-muted-foreground">Suggested due date: </span>
-                    {new Date(
-                      aiResponse.aiDueDateSuggestion.suggestedDueDate,
-                    ).toLocaleDateString()}
-                  </p>
-                )}
-                {aiResponse.aiDueDateSuggestion?.criticalPathWarning && (
-                  <p className="text-xs text-muted-foreground">
-                    {aiResponse.aiDueDateSuggestion.criticalPathWarning}
-                  </p>
-                )}
-                {aiResponse.aiRecommendations?.length ? (
-                  <ul className="list-disc pl-5 text-muted-foreground">
-                    {aiResponse.aiRecommendations.map((rec) => (
-                      <li key={rec}>{rec}</li>
-                    ))}
-                  </ul>
-                ) : null}
-                <div className="flex justify-end pt-1">
-                  <Button size="sm" variant="outline" type="button" onClick={handleClose}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
+                  ) : null}
+                  {preview.aiDueDateSuggestion?.criticalPathWarning ? (
+                    <p className="text-xs text-muted-foreground">
+                      {preview.aiDueDateSuggestion.criticalPathWarning}
+                    </p>
+                  ) : null}
+                  {preview.aiRecommendations?.length ? (
+                    <ul className="list-disc pl-4 text-xs text-muted-foreground">
+                      {preview.aiRecommendations.map((rec) => (
+                        <li key={rec}>{rec}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </PmAiSuggestionCard>
+              ) : null}
+            </PmAiAssistPanel>
 
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="secondary" onClick={handleClose}>

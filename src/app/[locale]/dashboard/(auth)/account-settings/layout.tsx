@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 import { generateMeta } from "@/lib/utils";
 import { SidebarNav } from "@/components/shared/sidebar-nav";
 
@@ -31,19 +30,20 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AccountSettingsLayout({ children }: { children: React.ReactNode }) {
-  const t = await getTranslations("settingsManagement.layout");
-
   return (
-    <div className="space-y-4 lg:space-y-6">
-      <div className="space-y-0.5">
-        <h2 className="text-2xl font-bold tracking-tight">Account Settings</h2>
-        <p className="text-muted-foreground">Manage your account configuration and preferences.</p>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="rounded-2xl border border-border/70 bg-card/95 p-5 shadow-sm">
+        <h2 className="text-2xl font-semibold tracking-tight">Account Settings</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your account configuration, credentials, and appearance in the same polished workspace rhythm.
+        </p>
       </div>
-      <div className="flex flex-col space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
-        <aside className="lg:w-64">
+
+      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+        <aside className="lg:sticky lg:top-24">
           <SidebarNav navItems={navItems} />
         </aside>
-        <div className="flex-1 lg:max-w-2xl">{children}</div>
+        <div className="min-w-0">{children}</div>
       </div>
     </div>
   );

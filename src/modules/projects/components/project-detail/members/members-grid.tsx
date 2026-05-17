@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   AvatarIndicator,
 } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -248,6 +249,9 @@ function MemberCard({
 
       <div className="mb-4 relative">
         <Avatar className="size-20 border-2 border-background ring-2 ring-muted group-hover:ring-primary/20 transition-all shadow-sm">
+          {member.user?.image ? (
+            <AvatarImage src={member.user.image} alt={displayName} />
+          ) : null}
           <AvatarFallback className="bg-primary/5 text-primary text-xl font-bold">
             {initials}
           </AvatarFallback>

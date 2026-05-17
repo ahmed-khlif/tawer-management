@@ -2,6 +2,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchAiProjectMetrics,
   fetchProjectAnomalies,
+  improveDescription,
   fetchSmartAssignment,
   predictTaskDuration,
   submitPredictionOutcomeFeedback,
@@ -10,11 +11,18 @@ import {
   PredictTaskDurationDto,
   PredictionOutcomeFeedbackDto,
   SmartAssignmentDto,
+  ImproveDescriptionDto,
 } from "@/modules/ai/types";
 
 export function useTaskDurationPrediction() {
   return useMutation({
     mutationFn: (data: PredictTaskDurationDto) => predictTaskDuration(data),
+  });
+}
+
+export function useImproveDescription() {
+  return useMutation({
+    mutationFn: (data: ImproveDescriptionDto) => improveDescription(data),
   });
 }
 

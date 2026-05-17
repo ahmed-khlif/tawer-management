@@ -1,5 +1,6 @@
 "use client";
 
+import DOMPurify from "dompurify";
 import { format } from "date-fns";
 import { ErrorBanner } from "@/components/error-banner";
 import { Badge } from "@/components/ui/badge";
@@ -24,19 +25,24 @@ interface SprintDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function toPlainTextDescription(value?: string | null) {
+  if (!value) return "—";
+  const sanitized = DOMPurify.sanitize(value, { ALLOWED_TAGS: [] });
+  const normalized = sanitized.replace(/\s+/g, " ").trim();
+  return normalized || "—";
+}
+
 export default function SprintDetailSheet({
   projectId,
   sprint: summarySprint,
   open,
   onOpenChange,
 }: SprintDetailSheetProps) {
-  // Refetch the full sprint detail (`GET /sprints/:id`) when the sheet opens.
-  // Falls back to the summary from the list endpoint while loading so the
-  // sheet renders immediately without a flash.
   const { data: detailedSprint } = useSprint(summarySprint?.id, {
     enabled: open && !!summarySprint?.id,
   });
   const sprint = detailedSprint ?? summarySprint;
+  const plainDescription = toPlainTextDescription(sprint?.description);
 
   const burndownQuery = useSprintBurndown(sprint?.id);
   const aiCapacityQuery = useSprintAiCapacity(projectId, sprint?.id);
@@ -83,12 +89,12 @@ export default function SprintDetailSheet({
                   </div>
                   <div>
                     <p className="text-xs uppercase text-muted-foreground">Description</p>
-                    <p className="text-sm">{sprint.description || "—"}</p>
+                    <p className="text-sm">{plainDescription}</p>
                   </div>
                 </CardContent>
               </Card>
 
-              <SprintTasksSection projectId={projectId} sprintId={sprint.id} />
+              <SprintTasksSection projectId={projectId} sprint={sprint} />
 
               <SprintAttachmentsSection
                 projectId={projectId}

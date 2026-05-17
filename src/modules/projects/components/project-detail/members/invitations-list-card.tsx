@@ -60,6 +60,7 @@ interface InvitationsListCardProps {
   onRevoke: (invitationId: string) => void;
   isPending: boolean;
   canManage: boolean;
+  viewMode?: "grid" | "list";
 }
 
 type StatusKey =
@@ -185,6 +186,7 @@ export function InvitationsListCard({
   onRevoke,
   isPending,
   canManage,
+  viewMode = "list",
 }: InvitationsListCardProps) {
   const t = useTranslations("modules.projects.project.details");
   const total = invitations.length;
@@ -206,45 +208,59 @@ export function InvitationsListCard({
   return (
     <div className="space-y-4">
       {total > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
-          <div className="flex items-center gap-2">
-            <Mail className="size-4 text-muted-foreground" />
-            <h3 className="text-sm font-medium">
-              {t("invitationsList.title")}
-            </h3>
-            <Badge variant="secondary" className="font-normal h-5 px-1.5 text-[10px]">
-              {total}
-            </Badge>
-          </div>
+        <div className="rounded-2xl border bg-muted/20 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Mail className="size-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">
+                    {t("invitationsList.title")}
+                  </h3>
+                  <Badge
+                    variant="secondary"
+                    className="h-5 px-1.5 text-[10px] font-normal"
+                  >
+                    {total}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Track pending invites, resend expiring ones, and revoke access when needed.
+                </p>
+              </div>
+            </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {pendingCount > 0 ? (
-              <Badge
-                variant="outline"
-                className="gap-1 pm-tone-info border font-normal text-[10px] h-5"
-              >
-                <MailCheck className="size-3" />
-                {pendingCount} pending
-              </Badge>
-            ) : null}
-            {expiringCount > 0 ? (
-              <Badge
-                variant="outline"
-                className="gap-1 pm-tone-warning border font-normal text-[10px] h-5"
-              >
-                <Clock className="size-3" />
-                {expiringCount} expiring
-              </Badge>
-            ) : null}
-            {expiredCount > 0 ? (
-              <Badge
-                variant="outline"
-                className="gap-1 border-destructive/30 bg-destructive/10 text-destructive font-normal text-[10px] h-5"
-              >
-                <TriangleAlert className="size-3" />
-                {expiredCount} expired
-              </Badge>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {pendingCount > 0 ? (
+                <Badge
+                  variant="outline"
+                  className="h-5 gap-1 text-[10px] font-normal pm-tone-info border"
+                >
+                  <MailCheck className="size-3" />
+                  {pendingCount} pending
+                </Badge>
+              ) : null}
+              {expiringCount > 0 ? (
+                <Badge
+                  variant="outline"
+                  className="h-5 gap-1 text-[10px] font-normal pm-tone-warning border"
+                >
+                  <Clock className="size-3" />
+                  {expiringCount} expiring
+                </Badge>
+              ) : null}
+              {expiredCount > 0 ? (
+                <Badge
+                  variant="outline"
+                  className="h-5 gap-1 border-destructive/30 bg-destructive/10 text-[10px] font-normal text-destructive"
+                >
+                  <TriangleAlert className="size-3" />
+                  {expiredCount} expired
+                </Badge>
+              ) : null}
+            </div>
           </div>
         </div>
       )}
@@ -266,7 +282,13 @@ export function InvitationsListCard({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="space-y-2">
+        <div
+          className={cn(
+            viewMode === "grid"
+              ? "grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+              : "space-y-2",
+          )}
+        >
           {invitations.map((invite) => {
             const expiresAt = new Date(invite.expiresAt);
             const status = resolveStatus(invite.status, expiresAt);
@@ -275,33 +297,193 @@ export function InvitationsListCard({
             const isExpired = status.key === "expired";
             const StatusIcon = status.Icon;
 
+            const actions = canManage ? (
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      onClick={() => handleCopyEmail(invite.email)}
+                      aria-label="Copy email"
+                    >
+                      <Copy className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy email</TooltipContent>
+                </Tooltip>
+                {!isExpired && status.key !== "revoked" ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={() => onResend(invite.id)}
+                        disabled={isPending}
+                        aria-label="Resend"
+                      >
+                        <RefreshCw className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {t("invitationsList.resend", {
+                        defaultValue: "Resend",
+                      })}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : null}
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          aria-label="More actions"
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>More actions</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => onResend(invite.id)}
+                      disabled={
+                        isPending || isExpired || status.key === "revoked"
+                      }
+                    >
+                      <RefreshCw className="mr-2 size-4" />
+                      {t("invitationsList.resend", {
+                        defaultValue: "Resend",
+                      })}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => onRevoke(invite.id)}
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      {t("invitationsList.cancel")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : null;
+
+            if (viewMode === "grid") {
+              return (
+                <Card
+                  key={invite.id}
+                  className={cn(
+                    "border-border/70 bg-card/95 shadow-sm transition-all hover:-translate-y-px hover:shadow-md",
+                    status.key === "expiring" &&
+                      "border-amber-500/30 bg-amber-500/[0.04]",
+                    status.key === "expired" &&
+                      "border-destructive/20 bg-destructive/[0.03]",
+                  )}
+                >
+                  <CardHeader className="space-y-3 pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <Avatar className="size-10">
+                          <AvatarFallback className="bg-secondary text-xs uppercase text-secondary-foreground">
+                            {invite.email.substring(0, 2)}
+                          </AvatarFallback>
+                          {status.indicator ? (
+                            <AvatarIndicator variant={status.indicator} />
+                          ) : null}
+                        </Avatar>
+                        <div className="min-w-0">
+                          <CardTitle className="truncate text-base font-semibold">
+                            {invite.email}
+                          </CardTitle>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "h-5 gap-1 text-[10px] font-normal",
+                                status.badgeClass,
+                              )}
+                            >
+                              <StatusIcon className="size-3" />
+                              {status.label}
+                            </Badge>
+                            {invite.isManager ? (
+                              <Badge
+                                variant="outline"
+                                className="h-5 gap-1 border-primary/20 bg-primary/5 text-[10px] font-normal text-primary"
+                              >
+                                <Crown className="size-3" />
+                                Manager
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                      {actions}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2 py-1",
+                          isExpired
+                            ? "border-destructive/20 bg-destructive/5 text-destructive"
+                            : status.key === "expiring"
+                              ? "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+                              : "border-border/70 bg-background text-muted-foreground",
+                        )}
+                      >
+                        <CalendarClock className="size-3" />
+                        {isExpired ? "Expired " : "Expires "}
+                        {expiryRelative}
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-muted-foreground/80">
+                        <ExternalLink className="size-3" />
+                        {expiryAbsolute}
+                      </span>
+                    </div>
+                    <div className="rounded-xl border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                      Sent {relativeTimeFromNow(new Date(invite.createdAt))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+
             return (
               <div
                 key={invite.id}
                 className={cn(
                   status.key === "expiring" &&
-                    "border-amber-500/30 bg-amber-500/[0.04]",
+                    "rounded-xl border border-amber-500/30 bg-amber-500/[0.04]",
                   status.key === "expired" &&
-                    "border-destructive/20 bg-destructive/[0.03]",
+                    "rounded-xl border border-destructive/20 bg-destructive/[0.03]",
                 )}
               >
                 <ListCard
                   avatar={
-                  <Avatar className="size-9">
-                    <AvatarFallback className="bg-secondary text-secondary-foreground text-xs uppercase">
-                      {invite.email.substring(0, 2)}
-                    </AvatarFallback>
-                    {status.indicator ? (
-                      <AvatarIndicator variant={status.indicator} />
-                    ) : null}
-                  </Avatar>
-                }
-                primary={
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <span className="truncate font-medium">
-                      {invite.email}
-                    </span>
-                    {invite.isManager ? (
+                    <Avatar className="size-9">
+                      <AvatarFallback className="bg-secondary text-secondary-foreground text-xs uppercase">
+                        {invite.email.substring(0, 2)}
+                      </AvatarFallback>
+                      {status.indicator ? (
+                        <AvatarIndicator variant={status.indicator} />
+                      ) : null}
+                    </Avatar>
+                  }
+                  primary={
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate font-medium">
+                        {invite.email}
+                      </span>
+                      {invite.isManager ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="inline-flex items-center justify-center rounded-md bg-primary/10 p-0.5 text-primary">
@@ -311,129 +493,50 @@ export function InvitationsListCard({
                         <TooltipContent>Manager invitation</TooltipContent>
                       </Tooltip>
                     ) : null}
-                  </div>
-                }
-                secondary={
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2 py-1",
-                        isExpired
-                          ? "border-destructive/20 bg-destructive/5 text-destructive"
-                          : status.key === "expiring"
-                            ? "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300"
-                            : "border-border/70 bg-background text-muted-foreground",
-                      )}
-                    >
-                      <CalendarClock className="size-3" />
-                      {isExpired ? "Expired " : "Expires "}
-                      {expiryRelative}
-                    </span>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex items-center gap-1 text-muted-foreground/80">
-                          <ExternalLink className="size-3" />
-                          {expiryAbsolute}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Sent {relativeTimeFromNow(new Date(invite.createdAt))}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                }
-                badge={
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "gap-1 text-[10px] h-5 font-normal",
-                      status.badgeClass,
-                    )}
-                  >
-                    <StatusIcon className="size-3" />
-                    {status.label}
-                  </Badge>
-                }
-                actions={
-                  canManage ? (
-                    <div className="flex items-center gap-0.5">
+                    </div>
+                  }
+                  secondary={
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-2 py-1",
+                          isExpired
+                            ? "border-destructive/20 bg-destructive/5 text-destructive"
+                            : status.key === "expiring"
+                              ? "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+                              : "border-border/70 bg-background text-muted-foreground",
+                        )}
+                      >
+                        <CalendarClock className="size-3" />
+                        {isExpired ? "Expired " : "Expires "}
+                        {expiryRelative}
+                      </span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            onClick={() => handleCopyEmail(invite.email)}
-                            aria-label="Copy email"
-                          >
-                            <Copy className="size-4" />
-                          </Button>
+                          <span className="inline-flex items-center gap-1 text-muted-foreground/80">
+                            <ExternalLink className="size-3" />
+                            {expiryAbsolute}
+                          </span>
                         </TooltipTrigger>
-                        <TooltipContent>Copy email</TooltipContent>
+                        <TooltipContent>
+                          Sent {relativeTimeFromNow(new Date(invite.createdAt))}
+                        </TooltipContent>
                       </Tooltip>
-                      {!isExpired && status.key !== "revoked" ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8"
-                              onClick={() => onResend(invite.id)}
-                              disabled={isPending}
-                              aria-label="Resend"
-                            >
-                              <RefreshCw className="size-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {t("invitationsList.resend", {
-                              defaultValue: "Resend",
-                            })}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : null}
-                      <DropdownMenu>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-8"
-                                aria-label="More actions"
-                              >
-                                <MoreHorizontal className="size-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent>More actions</TooltipContent>
-                        </Tooltip>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => onResend(invite.id)}
-                            disabled={
-                              isPending ||
-                              isExpired ||
-                              status.key === "revoked"
-                            }
-                          >
-                            <RefreshCw className="size-4 mr-2" />
-                            {t("invitationsList.resend", {
-                              defaultValue: "Resend",
-                            })}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => onRevoke(invite.id)}
-                          >
-                            <Trash2 className="size-4 mr-2" />
-                            {t("invitationsList.cancel")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
-                  ) : null
                   }
+                  badge={
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 gap-1 text-[10px] font-normal",
+                        status.badgeClass,
+                      )}
+                    >
+                      <StatusIcon className="size-3" />
+                      {status.label}
+                    </Badge>
+                  }
+                  actions={actions}
                 />
               </div>
             );

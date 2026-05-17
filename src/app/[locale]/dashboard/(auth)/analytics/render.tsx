@@ -5,6 +5,9 @@ import Loading from "@/components/page-loader";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import ExecutiveDashboard from "@/modules/analytics/components/executive/executive-dashboard";
 import { canViewExecutiveOverview } from "@/modules/analytics/utils/access";
+import { Activity, ShieldCheck, Users } from "lucide-react";
+import { PageHeaderStrip } from "@/modules/projects/components/shared/page-header-strip";
+import AdminPageShell from "@/modules/projects/components/shared/admin-page-shell";
 
 export default function AnalyticsPageRender() {
   const { user, isLoading } = useCurrentUser();
@@ -19,14 +22,25 @@ export default function AnalyticsPageRender() {
   }
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Executive Analytics</h1>
-        <p className="text-sm text-muted-foreground">
-          Executive portfolio health across your accessible business units, with a separate view of your own productivity.
-        </p>
-      </header>
+    <AdminPageShell>
+      <PageHeaderStrip
+        icon={Activity}
+        title="Executive Analytics"
+        description="Portfolio health across your accessible business units, with a separated view of your own productivity and delivery signals."
+        metrics={[
+          {
+            icon: ShieldCheck,
+            label: "Executive access",
+            tone: "primary",
+          },
+          {
+            icon: Users,
+            label: "Portfolio + personal view",
+            tone: "info",
+          },
+        ]}
+      />
       <ExecutiveDashboard />
-    </div>
+    </AdminPageShell>
   );
 }

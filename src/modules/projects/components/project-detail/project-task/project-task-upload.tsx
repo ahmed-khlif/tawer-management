@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import {
@@ -27,19 +28,21 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "next-intl";
 import { ErrorBanner } from "@/components/error-banner";
 import { DotBadgeSelectItem } from "../../shared/dot-badge-option";
 import { ProjectTaskType, EnumProjectTaskType, EnumProjectTaskStatus, EnumProjectTaskPriority } from "@/modules/projects/types/project-tasks";
 import useProjectTaskUpload from "../../../hooks/tasks/use-project-task-upload";
 import useProject from "../../../hooks/projects/use-project";
-import useProjectEpics from "../../../hooks/epics/use-project-epics";
 import useProjectMilestones from "../../../hooks/milestones/use-project-milestones";
 import useProjectSprints from "../../../hooks/sprints/use-project-sprints";
 import { retrieveProjectTasksPaginated } from "../../../services/api/project-tasks";
 import { projectTaskStatusDotColors, projectTaskPriorityDotColors, projectTaskTypeDotColors } from "../../../utils/badges/project-task-badges";
 import AttachementUpload from "@/modules/projects/components/project-detail/project-task/attachments";
+import { previewTaskAi } from "@/modules/projects/services/api/project-ai-preview";
+import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
+import PmAiDescriptionAssist from "@/modules/projects/components/shared/pm-ai-description-assist";
+import type { TaskAiPreviewResult } from "@/modules/projects/types/project-ai-preview";
 
 interface Props {
   projectId: string;
@@ -60,11 +63,6 @@ export default function ProjectTaskUploadSheet({
 
   const [resetFilesTrigger, setResetFilesTrigger] = React.useState(0);
   const { project } = useProject(projectId);
-  const epicsQuery = useProjectEpics(
-    projectId,
-    { page: 1, limit: 100, sortBy: "createdAtDesc" },
-    { enabled: isAgile && isOpen },
-  );
   const milestonesQuery = useProjectMilestones(projectId, { page: 1, limit: 100, sortBy: "createdAtDesc" });
   const sprintsQuery = useProjectSprints(projectId, { enabled: isAgile && isOpen });
 
@@ -91,7 +89,7 @@ export default function ProjectTaskUploadSheet({
     [projectTasksQuery.data?.data, task?.id],
   );
 
-  const { form, isPending, onSubmit, error, aiBlockerRisk, clearAiBlockerRisk } = useProjectTaskUpload({
+  const { form, isPending, onSubmit, error, clearAiBlockerRisk } = useProjectTaskUpload({
     projectId,
     task,
     onSuccess: (risk) => {
@@ -108,6 +106,41 @@ export default function ProjectTaskUploadSheet({
     clearAiBlockerRisk();
     onClose();
   }
+
+  const [taskAiPreview, setTaskAiPreview] = React.useState<TaskAiPreviewResult | null>(null);
+  const taskAiMutation = useMutation({
+    mutationFn: (reason: "assignee" | "estimate" | "risk") => {
+      const values = form.getValues();
+      return previewTaskAi(projectId, {
+        title: values.title,
+        description: values.description || undefined,
+        type: values.type,
+        priority: values.priority,
+        status: values.status,
+        storyPoints: typeof values.storyPoints === "number" && values.storyPoints > 0 ? values.storyPoints : undefined,
+        estimatedHours: typeof values.estimatedHours === "number" && values.estimatedHours > 0 ? values.estimatedHours : undefined,
+        dueDate: values.dueDate || undefined,
+        assigneeId: values.assigneeId || undefined,
+        milestoneId: values.milestoneId || undefined,
+        sprintId: values.sprintId || undefined,
+        dependencyIds: reason === "risk" ? [] : undefined,
+      });
+    },
+    onSuccess: (response) => setTaskAiPreview(response),
+  });
+
+  const watchedTitle = form.watch("title");
+  const watchedDescription = form.watch("description");
+  const watchedType = form.watch("type");
+  const watchedPriority = form.watch("priority");
+  const watchedStatus = form.watch("status");
+  const watchedAssigneeId = form.watch("assigneeId");
+  const watchedEstimatedHours = form.watch("estimatedHours");
+  const watchedStoryPoints = form.watch("storyPoints");
+  const canSuggestAssignee = !!watchedTitle?.trim() && !!watchedType && !!watchedPriority;
+  const canSuggestEstimate =
+    !!watchedTitle?.trim() && (!!watchedDescription?.trim() || !!watchedType || (typeof watchedStoryPoints === "number" && watchedStoryPoints > 0));
+  const canCheckRisk = !!watchedTitle?.trim() && !!watchedStatus;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
@@ -137,16 +170,26 @@ export default function ProjectTaskUploadSheet({
             <FormField
               control={form.control}
               name="description"
-              render={({ field }) => (
+              render={({ field: { value, onChange, name, ...field } }) => (
                 <FormItem>
                   <FormLabel>{t("upload.form.labels.description")}</FormLabel>
                   <FormControl>
                     <TextEditor
                       placeholder={t("upload.form.placeholders.description")}
                       initialContent={task?.description || ""}
+                      value={typeof value === "string" ? value : ""}
+                      onChange={onChange}
+                      name={name}
                       {...field}
                     />
                   </FormControl>
+                  <PmAiDescriptionAssist
+                    entityType="TASK"
+                    projectId={projectId}
+                    title={form.watch("title")}
+                    description={typeof value === "string" ? value : ""}
+                    onApply={(value) => form.setValue("description", value, { shouldDirty: true })}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -382,30 +425,6 @@ export default function ProjectTaskUploadSheet({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="epicId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("upload.form.labels.epic", { defaultValue: "Epic" })}</FormLabel>
-                      <Select onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)} value={field.value || "__none__"}>
-                        <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={t("upload.form.placeholders.selectEpic", { defaultValue: "Select epic" })} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="__none__">None</SelectItem>
-                          {(epicsQuery.data?.data || []).map((epic) => (
-                            <SelectItem key={epic.id} value={epic.id}>{epic.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="sprintId"
                   render={({ field }) => (
                     <FormItem>
@@ -440,90 +459,131 @@ export default function ProjectTaskUploadSheet({
               maxDate={project?.endTime}
             />
 
-            <div className="space-y-3 rounded-lg border p-4">
-              <h4 className="text-sm font-medium">{t("upload.form.labels.aiOptions", { defaultValue: "AI options" })}</h4>
-              <FormField
-                control={form.control}
-                name="aiSuggestAssignee"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <FormLabel>{t("upload.form.labels.aiSuggestAssignee", { defaultValue: "Suggest assignee if empty" })}</FormLabel>
-                    </div>
-                    <FormControl>
-                      <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="aiSuggestEstimate"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <FormLabel>{t("upload.form.labels.aiSuggestEstimate", { defaultValue: "Suggest estimate if empty" })}</FormLabel>
-                    </div>
-                    <FormControl>
-                      <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="aiSuggestBlockerRisk"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between rounded-md border p-3">
-                    <div>
-                      <FormLabel>{t("upload.form.labels.aiSuggestBlockerRisk", { defaultValue: "Compute blocker risk" })}</FormLabel>
-                    </div>
-                    <FormControl>
-                      <Switch checked={!!field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {aiBlockerRisk && (
-              <div
-                className={cn(
-                  "rounded-md border p-4 space-y-2 text-sm",
-                  aiBlockerRisk.level === "HIGH" && "pm-surface-risk-high",
-                  aiBlockerRisk.level === "MEDIUM" && "pm-surface-risk-medium",
-                  aiBlockerRisk.level === "LOW" && "pm-surface-risk-low",
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">AI blocker risk</span>
-                  <span
-                    className={cn(
-                      "rounded-full border px-2 py-0.5 text-xs font-semibold",
-                      aiBlockerRisk.level === "HIGH" && "pm-badge-risk-high",
-                      aiBlockerRisk.level === "MEDIUM" && "pm-badge-risk-medium",
-                      aiBlockerRisk.level === "LOW" && "pm-badge-risk-low",
-                    )}
-                  >
-                    {aiBlockerRisk.level}
-                  </span>
-                </div>
-                {aiBlockerRisk.flags?.length ? (
-                  <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                    {aiBlockerRisk.flags.map((flag) => (
-                      <li key={flag}>{flag}</li>
+            <PmAiAssistPanel
+              title="AI Task Assist"
+              description="Ask AI for the next useful action once the task has enough context."
+              actions={[
+                {
+                  id: "assignee",
+                  label: "Suggest assignee",
+                  onClick: () => taskAiMutation.mutate("assignee"),
+                  disabled: !canSuggestAssignee,
+                  hint: "Add a task title, type, and priority first.",
+                  loading: taskAiMutation.isPending,
+                  priority: !watchedAssigneeId,
+                },
+                {
+                  id: "estimate",
+                  label: "Suggest estimate",
+                  onClick: () => taskAiMutation.mutate("estimate"),
+                  disabled: !canSuggestEstimate,
+                  hint: "Add a title and either description, task type, or story points first.",
+                  loading: taskAiMutation.isPending,
+                  priority: !watchedEstimatedHours,
+                },
+                {
+                  id: "risk",
+                  label: "Check blocker risk",
+                  onClick: () => taskAiMutation.mutate("risk"),
+                  disabled: !canCheckRisk,
+                  hint: "Add a title and status first.",
+                  loading: taskAiMutation.isPending,
+                },
+              ]}
+            >
+              {taskAiPreview?.assignmentRecommendations?.length ? (
+                <PmAiSuggestionCard
+                  title="Suggested assignees"
+                  onDismiss={() => setTaskAiPreview(null)}
+                >
+                  <div className="space-y-2">
+                    {taskAiPreview.assignmentRecommendations.map((candidate) => (
+                      <div key={candidate.userId} className="flex items-start justify-between gap-3 rounded-lg border bg-muted/10 p-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{candidate.userName || candidate.userId}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Score {candidate.totalScore.toFixed(1)} · workload {candidate.workloadScore.toFixed(1)} · fit {candidate.historicalFitScore.toFixed(1)}
+                          </p>
+                          {candidate.rationale ? (
+                            <p className="mt-1 text-xs text-muted-foreground">{candidate.rationale}</p>
+                          ) : null}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => form.setValue("assigneeId", candidate.userId, { shouldDirty: true })}
+                        >
+                          Apply
+                        </Button>
+                      </div>
                     ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-muted-foreground">No risk flags detected.</p>
-                )}
-                <div className="flex justify-end pt-1">
-                  <Button size="sm" variant="outline" type="button" onClick={handleClose}>
-                    Close
-                  </Button>
-                </div>
-              </div>
-            )}
+                  </div>
+                </PmAiSuggestionCard>
+              ) : null}
+
+              {taskAiPreview?.estimatePrediction ? (
+                <PmAiSuggestionCard
+                  title="Suggested estimate"
+                  badge={`${Math.round(taskAiPreview.estimatePrediction.confidence * 100)}% confidence`}
+                  onDismiss={() => setTaskAiPreview(null)}
+                  footer={
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => form.setValue("estimatedHours", taskAiPreview.estimatePrediction.predictedHours, { shouldDirty: true })}
+                    >
+                      Apply estimate
+                    </Button>
+                  }
+                >
+                  <p className="text-lg font-semibold">{taskAiPreview.estimatePrediction.predictedHours}h</p>
+                  {taskAiPreview.estimatePrediction.reasonCodes?.length ? (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Why this estimate</p>
+                      <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
+                        {taskAiPreview.estimatePrediction.reasonCodes.map((code) => (
+                          <li key={code}>{code}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {taskAiPreview.estimatePrediction.riskFlags?.length ? (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Risk flags</p>
+                      <ul className="mt-1 list-disc pl-4 text-xs text-muted-foreground">
+                        {taskAiPreview.estimatePrediction.riskFlags.map((flag) => (
+                          <li key={flag}>{flag}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </PmAiSuggestionCard>
+              ) : null}
+
+              {taskAiPreview?.blockerRisk ? (
+                <PmAiSuggestionCard
+                  title="Blocker risk"
+                  badge={taskAiPreview.blockerRisk.level}
+                  onDismiss={() => setTaskAiPreview(null)}
+                  className={cn(
+                    taskAiPreview.blockerRisk.level === "HIGH" && "pm-surface-risk-high",
+                    taskAiPreview.blockerRisk.level === "MEDIUM" && "pm-surface-risk-medium",
+                    taskAiPreview.blockerRisk.level === "LOW" && "pm-surface-risk-low",
+                  )}
+                >
+                  {taskAiPreview.blockerRisk.flags?.length ? (
+                    <ul className="list-disc pl-4 text-xs text-muted-foreground">
+                      {taskAiPreview.blockerRisk.flags.map((flag) => (
+                        <li key={flag}>{flag}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No blocker warnings were detected.</p>
+                  )}
+                </PmAiSuggestionCard>
+              ) : null}
+            </PmAiAssistPanel>
 
             <AttachementUpload
               inputName="attachments"

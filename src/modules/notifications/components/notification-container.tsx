@@ -12,10 +12,13 @@ interface Props {
 
 export default function NotificationContainer({ notification }: Props) {
   const { currentLanguage } = useLanguages();
+  const baseClass =
+    "group flex cursor-pointer items-start gap-4 rounded-xl border border-border/60 bg-card/70 px-4 py-4 shadow-sm transition-all hover:-translate-y-px hover:border-primary/20 hover:bg-muted/40 hover:shadow-md";
+
   return notification.href ? (
     <Link
       href={notification.href}
-      className="group hover:bg-muted/50 flex cursor-pointer items-start gap-4 rounded-xl border px-4 py-4 transition-colors last:border-0">
+      className={baseClass}>
       {/* Avatar Section */}
       <div className="flex-none">
         <Avatar className="size-10 border">
@@ -48,8 +51,7 @@ export default function NotificationContainer({ notification }: Props) {
       </div>
     </Link>
   ) : <div
-
-    className="group hover:bg-muted/50 flex cursor-pointer items-start gap-4 rounded-xl border px-4 py-4 transition-colors last:border-0">
+    className={baseClass}>
     {/* Avatar Section */}
     <div className="flex-none">
       <Avatar className="size-10 border">

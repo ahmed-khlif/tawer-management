@@ -51,7 +51,7 @@ export default function GanttRightPanel({
         backgroundImage:
           viewport.zoom === "month"
             ? "none"
-            : `linear-gradient(to right, transparent ${viewport.pixelsPerDay - 1}px, hsl(var(--border) / 0.3) ${viewport.pixelsPerDay - 1}px)`,
+            : `linear-gradient(to right, transparent ${viewport.pixelsPerDay - 1}px, hsl(var(--border) / 0.32) ${viewport.pixelsPerDay - 1}px)`,
         backgroundSize: `${viewport.pixelsPerDay}px 100%`,
       }}
     >
@@ -67,7 +67,7 @@ export default function GanttRightPanel({
               activeRowId === row.id
                 ? "hsl(var(--primary) / 0.08)"
                 : i % 2 === 1
-                  ? "var(--muted)"
+                  ? "hsl(var(--muted) / 0.55)"
                   : "transparent",
             opacity: activeRowId === row.id ? 1 : i % 2 === 1 ? 0.15 : 1,
           }}

@@ -70,7 +70,24 @@ export default function ProjectTasksKanbanCard({
   const priorityKey = task.priority.toLowerCase();
   const typeKey = task.type.toLowerCase();
   const labels = task.labels ?? [];
-  const assignee = resolveAssignee(task.assigneeId, members);
+  const assignee = React.useMemo(() => {
+    const resolved = resolveAssignee(task.assigneeId, members);
+    if (resolved) return resolved;
+    if (task.assignee?.name) {
+      const tokens = task.assignee.name.trim().split(/\s+/).filter(Boolean);
+      const initials =
+        tokens.length >= 2
+          ? `${tokens[0][0] ?? ""}${tokens[1][0] ?? ""}`
+          : (tokens[0]?.slice(0, 2) ?? "");
+      return {
+        name: task.assignee.name,
+        initials: initials.toUpperCase() || "?",
+        image: task.assignee.image,
+        email: task.assignee.email,
+      };
+    }
+    return null;
+  }, [members, task.assignee?.email, task.assignee?.image, task.assignee?.name, task.assigneeId]);
   const hasStoryPoints =
     typeof task.storyPoints === "number" && task.storyPoints > 0;
   const dueLabel = formatDueDate(task.dueDate);
@@ -87,6 +104,13 @@ export default function ProjectTasksKanbanCard({
   const completedSubTasks = subTasks.filter(
     (subTask) => subTask.status === "DONE",
   ).length;
+  const epicBadgeStyle = task.epic?.color
+    ? {
+        borderColor: `${task.epic.color}55`,
+        backgroundColor: `${task.epic.color}14`,
+        color: task.epic.color,
+      }
+    : undefined;
 
   return (
     <Card
@@ -157,6 +181,23 @@ export default function ProjectTasksKanbanCard({
                 </Tooltip>
               )}
             </div>
+
+            {visibleAttributes.epic && task.epic ? (
+              <div className="mt-2">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-5 max-w-full gap-1 border-l-2 text-[10px]",
+                    epicBadgeClasses,
+                  )}
+                  title={task.epic.title}
+                  style={epicBadgeStyle}
+                >
+                  <Layers className="size-2.5" />
+                  <span className="max-w-[180px] truncate">{task.epic.title}</span>
+                </Badge>
+              </div>
+            ) : null}
 
             {(visibleAttributes.type ||
               visibleAttributes.priority ||
@@ -251,8 +292,7 @@ export default function ProjectTasksKanbanCard({
           ) : null}
         </div>
 
-        {(visibleAttributes.milestone && task.milestoneId) ||
-        (visibleAttributes.epic && task.epicId) ? (
+        {visibleAttributes.milestone && task.milestoneId ? (
           <div className="flex flex-wrap items-center gap-1.5">
             {visibleAttributes.milestone &&
               typeof task.milestoneId === "string" &&
@@ -264,19 +304,6 @@ export default function ProjectTasksKanbanCard({
                 >
                   <Milestone className="size-2.5" />
                   {tTasks("milestone", { defaultValue: "Milestone" })}
-                </Badge>
-              )}
-
-            {visibleAttributes.epic &&
-              typeof task.epicId === "string" &&
-              task.epicId && (
-                <Badge
-                  variant="outline"
-                  className={cn("h-5 gap-1 text-[10px]", epicBadgeClasses)}
-                  title={task.epicId}
-                >
-                  <Layers className="size-2.5" />
-                  {tTasks("epic", { defaultValue: "Epic" })}
                 </Badge>
               )}
           </div>

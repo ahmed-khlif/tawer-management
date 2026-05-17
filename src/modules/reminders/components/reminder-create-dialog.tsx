@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,15 @@ import { RecurrencePicker } from "./recurrence-picker";
 interface ReminderCreateDialogProps {
   projectId: string;
   triggerLabel?: string;
+  triggerIcon?: React.ReactNode;
+  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
+  triggerSize?: React.ComponentProps<typeof Button>["size"];
+  triggerClassName?: string;
+  initialEntityType?: ReminderEntityType;
+  initialEntityId?: string;
+  initialEntityLabel?: string;
+  defaultMessage?: string;
+  lockEntity?: boolean;
 }
 
 const channels: ReminderChannelType[] = ["EMAIL", "PUSH", "TELEGRAM", "NTFY"];
@@ -54,6 +63,15 @@ const entityTypes: ReminderEntityType[] = ["PROJECT", "TASK", "SPRINT", "MILESTO
 export default function ReminderCreateDialog({
   projectId,
   triggerLabel = "Create reminder",
+  triggerIcon,
+  triggerVariant,
+  triggerSize,
+  triggerClassName,
+  initialEntityType,
+  initialEntityId,
+  initialEntityLabel,
+  defaultMessage,
+  lockEntity = false,
 }: ReminderCreateDialogProps) {
   const [open, setOpen] = useState(false);
   const { data: project } = useQuery({
@@ -63,18 +81,28 @@ export default function ReminderCreateDialog({
   });
   const { createReminder } = useReminderUpload(projectId);
 
+  const projectLabel =
+    project?.name || project?.contents?.[0]?.name || "Current project";
+
+  const defaultEntityType = initialEntityType ?? "PROJECT";
+  const defaultEntityId =
+    initialEntityId ?? (defaultEntityType === "PROJECT" ? projectId : "");
+  const wasOpenRef = useRef(false);
+
+  const buildDefaultValues = (): ReminderSchema => ({
+    userId: "",
+    entityType: defaultEntityType,
+    entityId: defaultEntityId,
+    message: defaultMessage ?? "",
+    reminderAt: new Date(Date.now() + 60 * 60 * 1000),
+    isRecurring: false,
+    recurrenceRule: "",
+    channels: ["PUSH"],
+  });
+
   const form = useForm<ReminderSchema>({
     resolver: zodResolver(reminderSchema),
-    defaultValues: {
-      userId: "",
-      entityType: "PROJECT",
-      entityId: projectId,
-      message: "",
-      reminderAt: new Date(Date.now() + 60 * 60 * 1000),
-      isRecurring: false,
-      recurrenceRule: "",
-      channels: ["PUSH"],
-    },
+    defaultValues: buildDefaultValues(),
   });
 
   const entityType = form.watch("entityType");
@@ -112,24 +140,81 @@ export default function ReminderCreateDialog({
   }, [milestonesQuery.data]);
 
   useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      form.reset(buildDefaultValues());
+    }
+    wasOpenRef.current = open;
+  }, [
+    defaultEntityId,
+    defaultEntityType,
+    defaultMessage,
+    form,
+    open,
+  ]);
+
+  useEffect(() => {
     const firstMember = project?.members?.[0];
     if (!firstMember) return;
-    form.setValue("userId", firstMember.userId);
+    if (!form.getValues("userId")) {
+      form.setValue("userId", firstMember.userId);
+    }
   }, [form, project?.members]);
 
   useEffect(() => {
-    if (entityType === "PROJECT") {
-      form.setValue("entityId", projectId);
-    } else if (entityType === "CUSTOM") {
-      form.setValue("entityId", "");
-    } else if (entityType === "TASK") {
-      form.setValue("entityId", taskOptions[0]?.id ?? "");
-    } else if (entityType === "SPRINT") {
-      form.setValue("entityId", sprintOptions[0]?.id ?? "");
-    } else if (entityType === "MILESTONE") {
-      form.setValue("entityId", milestoneOptions[0]?.id ?? "");
+    if (lockEntity) {
+      if (form.getValues("entityType") !== defaultEntityType) {
+        form.setValue("entityType", defaultEntityType);
+      }
+      if ((form.getValues("entityId") ?? "") !== defaultEntityId) {
+        form.setValue("entityId", defaultEntityId);
+      }
+      return;
     }
-  }, [entityType, form, projectId, taskOptions, sprintOptions, milestoneOptions]);
+
+    if (entityType === "PROJECT") {
+      if ((form.getValues("entityId") ?? "") !== projectId) {
+        form.setValue("entityId", projectId);
+      }
+    } else if (entityType === "CUSTOM") {
+      if ((form.getValues("entityId") ?? "") !== "") {
+        form.setValue("entityId", "");
+      }
+    } else if (entityType === "TASK") {
+      const nextId = taskOptions[0]?.id ?? "";
+      if ((form.getValues("entityId") ?? "") !== nextId) {
+        form.setValue("entityId", nextId);
+      }
+    } else if (entityType === "SPRINT") {
+      const nextId = sprintOptions[0]?.id ?? "";
+      if ((form.getValues("entityId") ?? "") !== nextId) {
+        form.setValue("entityId", nextId);
+      }
+    } else if (entityType === "MILESTONE") {
+      const nextId = milestoneOptions[0]?.id ?? "";
+      if ((form.getValues("entityId") ?? "") !== nextId) {
+        form.setValue("entityId", nextId);
+      }
+    }
+  }, [
+    defaultEntityId,
+    defaultEntityType,
+    entityType,
+    form,
+    lockEntity,
+    milestoneOptions,
+    projectId,
+    sprintOptions,
+    taskOptions,
+  ]);
+
+  const lockedEntityTypeLabel =
+    defaultEntityType === "CUSTOM" && initialEntityLabel?.toLowerCase().startsWith("epic")
+      ? "EPIC"
+      : defaultEntityType;
+
+  const lockedEntityDisplay =
+    initialEntityLabel ||
+    (defaultEntityType === "PROJECT" ? projectLabel : defaultEntityId || "Linked entity");
 
   const handleSubmit = form.handleSubmit(async (values) => {
     await createReminder.mutateAsync({
@@ -142,15 +227,19 @@ export default function ReminderCreateDialog({
       recurrenceRule: values.isRecurring ? values.recurrenceRule || undefined : undefined,
       channels: values.channels,
     });
-    form.reset();
+    form.reset(buildDefaultValues());
     setOpen(false);
   });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="gap-1.5">
-          <Plus className="size-4" />
+        <Button
+          size={triggerSize ?? "sm"}
+          variant={triggerVariant}
+          className={triggerClassName ? `${triggerClassName} gap-1.5` : "gap-1.5"}
+        >
+          {triggerIcon ?? <Plus className="size-4" />}
           {triggerLabel}
         </Button>
       </DialogTrigger>
@@ -186,92 +275,105 @@ export default function ReminderCreateDialog({
               )}
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="entityType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Entity type</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+            {lockEntity ? (
+              <div className="grid gap-4 rounded-2xl border border-border/60 bg-muted/20 p-4 md:grid-cols-2">
+                <div className="space-y-1">
+                  <FormLabel>Entity type</FormLabel>
+                  <Input value={lockedEntityTypeLabel} disabled />
+                </div>
+                <div className="space-y-1">
+                  <FormLabel>Entity</FormLabel>
+                  <Input value={lockedEntityDisplay} disabled />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="entityType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Entity type</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {entityTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="entityId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Entity</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
+                        {entityType === "TASK" ? (
+                          <Select value={field.value || ""} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select task" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {taskOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : entityType === "SPRINT" ? (
+                          <Select value={field.value || ""} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select sprint" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {sprintOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : entityType === "MILESTONE" ? (
+                          <Select value={field.value || ""} onValueChange={field.onChange}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select milestone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {milestoneOptions.map((option) => (
+                                <SelectItem key={option.id} value={option.id}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : entityType === "PROJECT" ? (
+                          <Input value={projectLabel} disabled />
+                        ) : (
+                          <Input
+                            {...field}
+                            value={field.value || ""}
+                            placeholder="Custom identifier (optional)"
+                          />
+                        )}
                       </FormControl>
-                      <SelectContent>
-                        {entityTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="entityId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Entity</FormLabel>
-                    <FormControl>
-                      {entityType === "TASK" ? (
-                        <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select task" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {taskOptions.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : entityType === "SPRINT" ? (
-                        <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select sprint" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sprintOptions.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : entityType === "MILESTONE" ? (
-                        <Select value={field.value || ""} onValueChange={field.onChange}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select milestone" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {milestoneOptions.map((option) => (
-                              <SelectItem key={option.id} value={option.id}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : entityType === "PROJECT" ? (
-                        <Input {...field} value={projectId} disabled />
-                      ) : (
-                        <Input
-                          {...field}
-                          value={field.value || ""}
-                          placeholder="Custom identifier (optional)"
-                        />
-                      )}
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <FormField
               control={form.control}

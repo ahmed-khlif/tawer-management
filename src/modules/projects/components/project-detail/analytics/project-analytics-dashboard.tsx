@@ -124,11 +124,11 @@ function ProjectAnalyticsSkeleton() {
           <Skeleton key={index} className="h-40 w-full" />
         ))}
       </div>
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.45fr]">
+      <div className="grid gap-4 2xl:grid-cols-[0.95fr_1.45fr]">
         <Skeleton className="h-[380px] w-full" />
         <Skeleton className="h-[380px] w-full" />
       </div>
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-4 2xl:grid-cols-[1.15fr_0.85fr]">
         <Skeleton className="h-[360px] w-full" />
         <Skeleton className="h-[360px] w-full" />
       </div>
@@ -757,7 +757,7 @@ export function ProjectAnalyticsDashboard({
         />
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.45fr]">
+      <div className="grid gap-4 2xl:grid-cols-[0.95fr_1.45fr]">
         <StatusDonutChart
           title="Project-wide task status"
           description="Completed, active, overdue, and stale work across the full project."
@@ -774,7 +774,7 @@ export function ProjectAnalyticsDashboard({
         )}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-4 2xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="border-border/60 bg-card/95 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>

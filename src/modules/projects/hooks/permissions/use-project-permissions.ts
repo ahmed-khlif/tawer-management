@@ -32,6 +32,7 @@ export interface ProjectPermissions {
   canEditMilestone: boolean;
   canDeleteMilestone: boolean;
   canViewMilestone: boolean;
+  canViewCalendar: boolean;
   canCompleteMilestone: boolean;
   // Tasks (basic)
   canCreateTask: boolean;
@@ -133,6 +134,7 @@ const NO_PERMISSIONS: ProjectPermissions = {
   canEditMilestone: false,
   canDeleteMilestone: false,
   canViewMilestone: false,
+  canViewCalendar: false,
   canCompleteMilestone: false,
   canCreateTask: false,
   canEditTask: false,
@@ -354,6 +356,7 @@ export default function useProjectPermissions(
 
   // Milestones (work in both AGILE and FREESTYLE)
   const canViewMilestone = canView && workItemAccess.canViewMilestones;
+  const canViewCalendar = canView;
   const canCreateMilestone = canView && workItemAccess.canManageMilestones;
   const canEditMilestone = canView && workItemAccess.canManageMilestones;
   const canDeleteMilestone = canView && workItemAccess.canManageMilestones;
@@ -399,6 +402,7 @@ export default function useProjectPermissions(
     canEditMilestone,
     canDeleteMilestone,
     canViewMilestone,
+    canViewCalendar,
     canCompleteMilestone,
     canCreateTask,
     canEditTask,

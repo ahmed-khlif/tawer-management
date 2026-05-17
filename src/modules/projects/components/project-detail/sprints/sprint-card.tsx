@@ -74,6 +74,7 @@ export default function SprintCard({
   const progressPercent =
     totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const attachmentsCount = sprint.attachments?.length ?? 0;
+  const epicDots = sprint.epicBreakdown ?? [];
   const capacityValue =
     typeof sprint.capacity === "number" && Number.isFinite(sprint.capacity)
       ? sprint.capacity
@@ -297,6 +298,28 @@ export default function SprintCard({
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
               Sprint health
             </div>
+            {epicDots.length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                {epicDots.slice(0, 5).map((epic) => (
+                  <Tooltip key={epic.id}>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="size-2.5 rounded-full border border-background/60"
+                        style={{ backgroundColor: epic.color ?? "#6366F1" }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      {epic.title} · {epic.completedTaskCount}/{epic.taskCount} tasks
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                {epicDots.length > 5 ? (
+                  <span className="text-[10px] font-medium text-muted-foreground">
+                    +{epicDots.length - 5} more
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {actionButtons}
             </div>
@@ -393,6 +416,29 @@ export default function SprintCard({
             )} 
           />
         </div>
+
+        {epicDots.length > 0 ? (
+          <div className="hidden min-w-[88px] shrink-0 items-center gap-1.5 lg:flex">
+            {epicDots.slice(0, 5).map((epic) => (
+              <Tooltip key={epic.id}>
+                <TooltipTrigger asChild>
+                  <span
+                    className="size-2.5 rounded-full border border-background/60"
+                    style={{ backgroundColor: epic.color ?? "#6366F1" }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {epic.title} · {epic.completedTaskCount}/{epic.taskCount} tasks
+                </TooltipContent>
+              </Tooltip>
+            ))}
+            {epicDots.length > 5 ? (
+              <span className="text-[10px] font-medium text-muted-foreground">
+                +{epicDots.length - 5}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         {/* Actions */}
         <div className="flex items-center gap-1 ml-auto">

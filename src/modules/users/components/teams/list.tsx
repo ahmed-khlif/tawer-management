@@ -8,7 +8,7 @@ import {
   getFilteredRowModel,
   useReactTable
 } from "@tanstack/react-table";
-import { ColumnsIcon, MoreHorizontal, Trash2Icon } from "lucide-react";
+import { ColumnsIcon, MoreHorizontal, Trash2Icon, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import UserProfileImage from "../profile-image";
 import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
+import { EmptyState } from "@/modules/projects/components/shared/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function TeamsList() {
   const t = useTranslations("modules.users.teams");
@@ -186,7 +188,7 @@ export default function TeamsList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-card/90 p-3 shadow-sm">
         <div className="flex justify-between gap-2">
           <Input
             placeholder={t("table.filters.search.placeholder")}
@@ -232,46 +234,63 @@ export default function TeamsList() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((hg) => (
-            <TableRow key={hg.id}>
-              {hg.headers.map((h) => (
-                <TableHead key={h.id}>
-                  {flexRender(h.column.columnDef.header, h.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {teamsAreLoading ? (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="text-center">
-                {t("table.loading")}
-              </TableCell>
-            </TableRow>
-          ) : teams?.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={columns.length} className="h-24 text-center">
-                {t("table.noResults")}
-              </TableCell>
-            </TableRow>
-          ) : (
-            table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
+      <div className="rounded-xl border border-border/70 bg-card/95 shadow-sm">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((hg) => (
+              <TableRow key={hg.id}>
+                {hg.headers.map((h) => (
+                  <TableHead key={h.id}>
+                    {flexRender(h.column.columnDef.header, h.getContext())}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {teamsAreLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="p-6">
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-12 w-full" />
+                    ))}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : teams?.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="p-6">
+                  <EmptyState
+                    compact
+                    icon={Users}
+                    message={t("table.noResults")}
+                    description="No teams matched the current search. Create a new squad or clear the filter to continue."
+                    className="py-4"
+                    action={
+                      user && hasPermissions(user.roles, "teamsManagement", "add") ? (
+                        <UploadTeamDialog />
+                      ) : null
+                    }
+                  />
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      <div className="flex items-center justify-end space-x-2">
+      <div className="flex items-center justify-end space-x-2 rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
         <div className="text-muted-foreground flex-1 text-sm">
           {paginationContent.rich("selected", {
             page: page,

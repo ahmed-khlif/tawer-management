@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ColumnsIcon, FilterIcon, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
+import { ArrowUpDown, ColumnsIcon, FilterIcon, HardDrive, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -40,6 +40,7 @@ import { hasPermissions } from "@/modules/auth/utils/users-permissions"
 import DeletionConfirmationDialog from "@/modules/users/components/deletion/deletion-confirmation-dialog"
 import UploadServerDialog from "./upload"
 import { CheckedState } from "@radix-ui/react-checkbox"
+import { EmptyState } from "@/modules/projects/components/shared/empty-state"
 
 export default function ServersList() {
   const t = useTranslations("modules.infrastructure.servers")
@@ -284,7 +285,7 @@ export default function ServersList() {
     <>
       <div className="w-full space-y-4">
         {/* Search and filters */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-card/90 p-3 shadow-sm">
           <div className="flex gap-2">
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("search.placeholder")} className="max-w-sm" />
 
@@ -342,7 +343,7 @@ export default function ServersList() {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border">
+        <div className="rounded-xl border border-border/70 bg-card/95 shadow-sm">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -366,8 +367,19 @@ export default function ServersList() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
-                    {t("table.noResults")}
+                  <TableCell colSpan={columns.length} className="p-6">
+                    <EmptyState
+                      compact
+                      icon={HardDrive}
+                      message={t("table.noResults")}
+                      description="No servers matched the current search or status filters."
+                      className="py-4"
+                      action={
+                        user && hasPermissions(user.roles, "serversManagement", "add") ? (
+                          <UploadServerDialog />
+                        ) : null
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               )}
@@ -376,7 +388,7 @@ export default function ServersList() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-end space-x-2">
+        <div className="flex items-center justify-end space-x-2 rounded-xl border border-border/70 bg-card/90 px-4 py-3 shadow-sm">
           <div className="text-muted-foreground flex-1 text-sm">
             {paginationContent.rich("selected", {
               page: page,

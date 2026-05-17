@@ -36,7 +36,6 @@ import {
 import fetchProjectStatusCounts from "@/modules/projects/services/api/project-status-counts";
 
 import { MetricCard } from "@/modules/projects/components/shared/metric-card";
-import { PageHeaderStrip } from "@/modules/projects/components/shared/page-header-strip";
 import { FilterPanel } from "@/modules/projects/components/shared/filter-panel";
 import { FilterSection } from "@/modules/projects/components/shared/filter-section";
 
@@ -122,46 +121,12 @@ export default function ExecutiveDashboard() {
       ]
     : [];
 
-  const headerStrip = (
-    <PageHeaderStrip
-      icon={BarChart3}
-      title={t("title")}
-      description={t("description")}
-      metrics={[
-        {
-          key: "projects",
-          icon: FolderKanban,
-          tone: "primary",
-          value: overview?.totalProjects ?? 0,
-          label: "Projects",
-        },
-        {
-          key: "tasks",
-          icon: ListTodo,
-          tone: "info",
-          value: overview?.totalTasks ?? 0,
-          label: "Tasks",
-        },
-      ]}
-      actions={
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRefresh}
-          disabled={isFetching}
-          className="gap-1.5"
-        >
-          {isFetching ? <Spinner className="size-4" /> : <RefreshCw className="size-4" />}
-          Refresh
-        </Button>
-      }
-    />
-  );
-
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {headerStrip}
+        <div className="flex justify-end">
+          <Skeleton className="h-9 w-28" />
+        </div>
         <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
           <Skeleton className="h-[400px]" />
           <div className="space-y-4">
@@ -178,7 +143,18 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="space-y-6">
-      {headerStrip}
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={isFetching}
+          className="gap-1.5"
+        >
+          {isFetching ? <Spinner className="size-4" /> : <RefreshCw className="size-4" />}
+          Refresh
+        </Button>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
         {/* Left Sidebar / Filters */}

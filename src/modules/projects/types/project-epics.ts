@@ -20,12 +20,16 @@ export interface EpicSummary {
   name: string;
   description?: string | null;
   color?: string | null;
+  sprintId?: string | null;
+  sprintName?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   createdAt: string | Date;
   tasks?: EpicTaskSummary[];
   totalTasks: number;
   doneTasks: number;
+  taskCount: number;
+  completedTaskCount: number;
   progress: number;
   aiRiskLevel?: import("@/modules/ai/types").AiRiskLevel;
   aiRecommendations?: string[];
@@ -48,6 +52,7 @@ export interface CreateEpicDto {
   name: string;
   description?: string | null;
   color?: string | null;
+  sprintId: string;
   startDate?: string | null;
   endDate?: string | null;
   aiSuggestTimeline?: boolean;
@@ -58,6 +63,7 @@ export interface UpdateEpicDto {
   name?: string | null;
   description?: string | null;
   color?: string | null;
+  sprintId?: string | null;
   startDate?: string | null;
   endDate?: string | null;
   aiSuggestTimeline?: boolean;
@@ -73,6 +79,7 @@ export interface EpicAiResponse {
 }
 
 export interface EpicQueryParams {
+  sprintId?: string;
   startDateFrom?: string;
   startDateTo?: string;
   endDateFrom?: string;

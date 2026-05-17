@@ -6,6 +6,9 @@ import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import Loading from "@/components/page-loader";
 import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import AccessDenied from "@/components/error/access-denied";
+import { PageHeaderStrip } from "@/modules/projects/components/shared/page-header-strip";
+import AdminPageShell from "@/modules/projects/components/shared/admin-page-shell";
+import { Users, UserPlus2 } from "lucide-react";
 
 export default function TeamsPageRender() {
   const t = useTranslations("modules.users.teams");
@@ -16,14 +19,30 @@ export default function TeamsPageRender() {
   if (user && !hasPermissions(user.roles, "teamsManagement", "view")) return <AccessDenied />;
 
   return (
-    <>
-      <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        {user && hasPermissions(user.roles, "teamsManagement", "add") && <UploadTeamDialog />}
-      </div>
-      <div className="pt-5">
+    <AdminPageShell>
+      <PageHeaderStrip
+        icon={Users}
+        title={t("title")}
+        description="Organize delivery squads, managers, and team structure with the same premium workspace language as PM."
+        metrics={[
+          {
+            icon: Users,
+            label: "Team structure",
+            tone: "primary",
+          },
+          user && hasPermissions(user.roles, "teamsManagement", "add")
+            ? {
+                icon: UserPlus2,
+                label: "Can create teams",
+                tone: "success",
+              }
+            : false,
+        ]}
+        actions={user && hasPermissions(user.roles, "teamsManagement", "add") ? <UploadTeamDialog /> : null}
+      />
+      <div>
         <TeamsList />
       </div>
-    </>
+    </AdminPageShell>
   );
 }

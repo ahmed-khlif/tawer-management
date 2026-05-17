@@ -118,8 +118,8 @@ export default function RemindersList({
   );
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-border/70 bg-card/95 shadow-sm">
+      <CardHeader className="pb-3">
         <PageHeaderStrip
           className="border-0 bg-transparent p-0 lg:flex-row"
           icon={Bell}
@@ -151,21 +151,28 @@ export default function RemindersList({
         />
       </CardHeader>
       <CardContent className="space-y-4">
-        <Tabs
-          value={status ?? "ALL"}
-          onValueChange={(value) => {
-            setStatus(value === "ALL" ? undefined : (value as ReminderStatus));
-            setPage(1);
-          }}
-        >
-          <TabsList>
-            {STATUSES.map((option) => (
-              <TabsTrigger key={option.value} value={option.value}>
-                {t(`filters.${option.tKey}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+          <Tabs
+            value={status ?? "ALL"}
+            onValueChange={(value) => {
+              setStatus(value === "ALL" ? undefined : (value as ReminderStatus));
+              setPage(1);
+            }}
+          >
+            <TabsList>
+              {STATUSES.map((option) => (
+                <TabsTrigger key={option.value} value={option.value}>
+                  {t(`filters.${option.tKey}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          <div className="text-xs text-muted-foreground">
+            {status
+              ? "Focused view for the selected reminder state."
+              : "Showing every reminder across your current workspace view."}
+          </div>
+        </div>
 
         {query.isLoading ? (
           <div className="space-y-3">
@@ -299,7 +306,7 @@ export default function RemindersList({
         )}
 
         {totalPages > 1 ? (
-          <div className="flex items-center justify-between gap-2 border-t pt-4">
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-xs text-muted-foreground">
               {t("pagination.summary", {
                 start: startRecord,

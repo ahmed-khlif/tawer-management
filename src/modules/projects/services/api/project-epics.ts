@@ -39,12 +39,14 @@ export async function fetchProjectEpics(
   if (isMockMode()) return EMPTY_EPICS;
 
   const query = buildQuery(params);
+  const endpoint =
+    params?.sprintId && !query.replace(/(^|&)sprintId=[^&]+(&|$)/, "").replace(/^&|&$/g, "")
+      ? API.EPICS.LIST_BY_SPRINT(projectId, params.sprintId)
+      : API.EPICS.LIST(projectId);
 
   try {
     const response = await GET(
-      query
-        ? `${API.EPICS.LIST(projectId)}?${query}`
-        : API.EPICS.LIST(projectId),
+      query ? `${endpoint}?${query}` : endpoint,
       getHeaders(),
     );
     return response.data as EpicList;
@@ -78,20 +80,24 @@ export async function createProjectEpic(
   data: CreateEpicDto,
 ): Promise<Epic> {
   if (isMockMode()) {
-    return {
-      id: crypto.randomUUID(),
-      projectId,
-      name: data.name,
-      description: data.description ?? null,
-      color: data.color ?? null,
-      startDate: data.startDate ?? null,
-      endDate: data.endDate ?? null,
-      createdAt: new Date().toISOString(),
-      tasks: [],
-      totalTasks: 0,
-      doneTasks: 0,
-      progress: 0,
-    };
+      return {
+        id: crypto.randomUUID(),
+        projectId,
+        name: data.name,
+        description: data.description ?? null,
+        color: data.color ?? null,
+        sprintId: data.sprintId ?? null,
+        sprintName: null,
+        startDate: data.startDate ?? null,
+        endDate: data.endDate ?? null,
+        createdAt: new Date().toISOString(),
+        tasks: [],
+        totalTasks: 0,
+        doneTasks: 0,
+        taskCount: 0,
+        completedTaskCount: 0,
+        progress: 0,
+      };
   }
 
   try {
@@ -117,12 +123,16 @@ export async function updateProjectEpic(
       name: data.name ?? "Updated Epic",
       description: data.description ?? null,
       color: data.color ?? null,
+      sprintId: data.sprintId ?? null,
+      sprintName: null,
       startDate: data.startDate ?? null,
       endDate: data.endDate ?? null,
       createdAt: new Date().toISOString(),
       tasks: [],
       totalTasks: 0,
       doneTasks: 0,
+      taskCount: 0,
+      completedTaskCount: 0,
       progress: 0,
     };
   }

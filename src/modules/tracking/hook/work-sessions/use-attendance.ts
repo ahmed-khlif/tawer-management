@@ -39,22 +39,38 @@ export default function useAttendance() {
         await queryClient.invalidateQueries({
           queryKey: ["work-sessions"],
           exact: false
-        })
+        });
         await queryClient.invalidateQueries({
           queryKey: ["notifications"],
           exact: false
-        })
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["user-data"],
+          exact: false,
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["users"],
+          exact: false,
+        });
       } else if (status === "out" && workSession) {
         await closeWorkSessionOnServerSide({ id: workSession.id });
 
         await queryClient.invalidateQueries({
           queryKey: ["work-sessions"],
           exact: false
-        })
+        });
         await queryClient.invalidateQueries({
           queryKey: ["notifications"],
           exact: false
-        })
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["user-data"],
+          exact: false,
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["users"],
+          exact: false,
+        });
         toast.success(t("success.checkout"))
       }
       return true;

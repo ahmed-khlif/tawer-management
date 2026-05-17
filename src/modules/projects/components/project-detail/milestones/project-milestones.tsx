@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Flag, Plus, Activity, AlertCircle, CheckCircle2, LayoutGrid, GanttChart, SlidersHorizontal, CheckCircle, Clock, ShieldAlert, ShieldCheck, ShieldEllipsis, Search } from "lucide-react";
 import { ErrorBanner } from "@/components/error-banner";
 import { PermissionGuard } from "@/components/permission-guard";
@@ -45,6 +45,8 @@ export default function ProjectMilestones({
   permissions,
 }: ProjectMilestonesProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [view, setView] = useState<"list" | "grid" | "gantt">("grid");
   const [search, setSearch] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -63,6 +65,33 @@ export default function ProjectMilestones({
   });
   const ganttQuery = useMilestoneGantt(project.id);
   const { deleteMilestone, completeMilestone } = useMilestoneUpload(project.id);
+  const selectedMilestoneId = searchParams.get("milestoneId");
+
+  React.useEffect(() => {
+    if (!selectedMilestoneId) {
+      return;
+    }
+
+    const matchedMilestone = (milestonesQuery.data?.data ?? []).find(
+      (milestone) => milestone.id === selectedMilestoneId,
+    );
+    if (matchedMilestone) {
+      setSelectedMilestone(matchedMilestone);
+    }
+  }, [milestonesQuery.data?.data, selectedMilestoneId]);
+
+  const closeSelectedMilestone = React.useCallback(() => {
+    setSelectedMilestone(null);
+    if (!selectedMilestoneId) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("milestoneId");
+    router.replace(
+      params.size > 0 ? `${pathname}?${params.toString()}` : pathname,
+    );
+  }, [pathname, router, searchParams, selectedMilestoneId]);
 
   const milestones = useMemo(() => {
     let source = milestonesQuery.data?.data ?? [];
@@ -408,9 +437,9 @@ export default function ProjectMilestones({
         projectId={project.id}
         milestone={selectedMilestone}
         open={!!selectedMilestone}
-        onOpenChange={(open) => !open && setSelectedMilestone(null)}
+        onOpenChange={(open) => !open && closeSelectedMilestone()}
         onEdit={permissions.canEditMilestone ? (value) => {
-          setSelectedMilestone(null);
+          closeSelectedMilestone();
           setEditingMilestone(value);
           setSheetOpen(true);
         } : undefined}
@@ -420,7 +449,7 @@ export default function ProjectMilestones({
         canCreateReminder={permissions.canCreateReminder}
         canCreateTask={permissions.canCreateTask}
         onCreateTask={(value) => {
-          setSelectedMilestone(null);
+          closeSelectedMilestone();
           router.push(
             `/dashboard/projects/${project.id}?tab=board&milestoneId=${value.id}&newTask=1`,
           );

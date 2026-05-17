@@ -2,6 +2,7 @@
 import React from "react";
 import useUser from "@/modules/auth/hooks/users/use-user";
 import { useRouter } from "@/i18n/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -18,6 +19,8 @@ export default function AuthLayout({
 }>) {
   const { user, isLoading } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
+  const isOnboardingRoute = pathname?.includes("/dashboard/onboarding");
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -27,6 +30,17 @@ export default function AuthLayout({
 
   if (isLoading) {
     return <Loading />;
+  }
+
+  if (isOnboardingRoute) {
+    return (
+      <AttendanceWrapper>
+        <div className="min-h-screen bg-background">
+          {children}
+        </div>
+        <CheckInScreen />
+      </AttendanceWrapper>
+    );
   }
 
   return (

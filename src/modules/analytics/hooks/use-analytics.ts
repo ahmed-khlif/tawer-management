@@ -5,10 +5,11 @@ import {
   fetchExecutiveAnalyticsOverview,
 } from "@/modules/analytics/services/analytics";
 
-export function useExecutiveAnalyticsOverview() {
+export function useExecutiveAnalyticsOverview(enabled = true) {
   return useQuery({
     queryKey: ["analytics-overview"],
     queryFn: fetchExecutiveAnalyticsOverview,
+    enabled,
     refetchOnWindowFocus: false,
   });
 }

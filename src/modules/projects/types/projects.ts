@@ -16,7 +16,7 @@ export interface ProjectMemberInResponse {
   createdAt: string;
   updatedAt?: string | null;
   projectId?: string;
-  user?: { id: string; name: string; email?: string };
+  user?: { id: string; name: string; email?: string; image?: string | null };
 }
 
 export interface ProjectInvitationInResponse {
@@ -98,7 +98,7 @@ export interface CreatedProjectMemberDto {
   userRoles?: string[];
   createdAt: string;
   updatedAt?: string;
-  user?: { id: string; name: string; email?: string };
+  user?: { id: string; name: string; email?: string; image?: string | null };
 }
 
 export type UpdatedProjectMemberDto = CreatedProjectMemberDto;
@@ -200,7 +200,7 @@ export interface ProjectMember {
   createdAt: Date;
   updatedAt?: Date | null;
   projectId?: string;
-  user?: { id: string; name: string; email?: string };
+  user?: { id: string; name: string; email?: string; image?: string };
 }
 
 export interface ProjectInvitation {

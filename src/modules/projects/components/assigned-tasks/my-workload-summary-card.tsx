@@ -25,7 +25,7 @@ export function MyWorkloadSummaryCard() {
 
   if (isError) {
     return (
-      <Card className="border-destructive/40 bg-destructive/5">
+      <Card className="border-destructive/40 bg-destructive/5 shadow-sm">
         <CardContent className="p-4 text-sm text-destructive">
           Could not load workload summary.
         </CardContent>
@@ -121,7 +121,7 @@ export function MyWorkloadSummaryCard() {
       {!loading && (statusBreakdown.length > 0 || priorityBreakdown.length > 0) ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {statusBreakdown.length > 0 ? (
-            <Card>
+            <Card className="border-border/70 bg-card/95 shadow-sm">
               <CardContent className="p-4">
                 <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
                   By status
@@ -141,7 +141,7 @@ export function MyWorkloadSummaryCard() {
             </Card>
           ) : null}
           {priorityBreakdown.length > 0 ? (
-            <Card>
+            <Card className="border-border/70 bg-card/95 shadow-sm">
               <CardContent className="p-4">
                 <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">
                   By priority

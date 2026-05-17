@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Calendar, Sparkles, TrendingUp, Activity, Clock, CheckCircle2, XCircle, Ban, SlidersHorizontal, Globe, Hourglass, Scale, Layers, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
@@ -50,6 +51,9 @@ interface Props {
 export default function ProjectSprints({ project }: Props) {
   const t = useTranslations("modules.projects.sprints");
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const {
     sprints,
@@ -81,6 +85,31 @@ export default function ProjectSprints({ project }: Props) {
   const [sprintToDelete, setSprintToDelete] = React.useState<SprintType | null>(
     null,
   );
+  const selectedSprintId = searchParams.get("sprintId");
+
+  React.useEffect(() => {
+    if (!selectedSprintId) {
+      return;
+    }
+
+    const matchedSprint = sprints.find((sprint) => sprint.id === selectedSprintId);
+    if (matchedSprint) {
+      setSelectedSprint(matchedSprint);
+    }
+  }, [selectedSprintId, sprints]);
+
+  const closeSelectedSprint = React.useCallback(() => {
+    setSelectedSprint(null);
+    if (!selectedSprintId) {
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("sprintId");
+    router.replace(
+      params.size > 0 ? `${pathname}?${params.toString()}` : pathname,
+    );
+  }, [pathname, router, searchParams, selectedSprintId]);
 
   const hasActiveFilters = (status || sortBy || language || hasCapacity !== undefined || duration);
 
@@ -496,7 +525,7 @@ export default function ProjectSprints({ project }: Props) {
         projectId={project.id}
         sprint={selectedSprint}
         open={!!selectedSprint}
-        onOpenChange={(open) => !open && setSelectedSprint(null)}
+        onOpenChange={(open) => !open && closeSelectedSprint()}
       />
 
       <ConfirmDialog

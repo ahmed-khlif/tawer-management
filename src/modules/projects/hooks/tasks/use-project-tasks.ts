@@ -1,24 +1,52 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ProjectTaskType } from "@/modules/projects/types/project-tasks";
-import { retrieveProjectTasks } from "../../services";
+import { projectQueryKeys } from "@/modules/projects/query-keys";
+import retrieveProjectTasks, {
+  ProjectTasksParams,
+} from "../../services/api/project-tasks";
 
-export default function useProjectTasks(projectId: string) {
+interface UseProjectTasksOptions {
+  initialFilters?: {
+    status?: string;
+    priority?: string;
+    type?: string;
+    assigneeId?: string;
+    milestoneId?: string;
+    epicId?: string | null;
+    sprintId?: string;
+  };
+  enabled?: boolean;
+}
+
+export default function useProjectTasks(
+  projectId: string,
+  options?: UseProjectTasksOptions,
+) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string | undefined>(undefined);
-  const [priority, setPriority] = useState<string | undefined>(undefined);
-  const [type, setType] = useState<string | undefined>(undefined);
-  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
-  const [milestoneId, setMilestoneId] = useState<string | undefined>(undefined);
-  const [epicId, setEpicId] = useState<string | undefined>(undefined);
+  const [status, setStatus] = useState<string | undefined>(
+    options?.initialFilters?.status,
+  );
+  const [priority, setPriority] = useState<string | undefined>(
+    options?.initialFilters?.priority,
+  );
+  const [type, setType] = useState<string | undefined>(
+    options?.initialFilters?.type,
+  );
+  const [assigneeId, setAssigneeId] = useState<string | undefined>(
+    options?.initialFilters?.assigneeId,
+  );
+  const [milestoneId, setMilestoneId] = useState<string | undefined>(
+    options?.initialFilters?.milestoneId,
+  );
+  const [epicId, setEpicId] = useState<string | null | undefined>(
+    options?.initialFilters?.epicId,
+  );
+  const [sprintId] = useState<string | undefined>(options?.initialFilters?.sprintId);
   const [displayedTasks, setDisplayedTasks] = useState<ProjectTaskType[]>([]);
 
-  // NOTE: backend `TaskQueryDto` does not support a `search` field, so it is
-  // applied client-side below; only server-side filters are part of the query
-  // key so we don't refetch on every keystroke.
-  const { data, isLoading, isError } = useQuery<ProjectTaskType[]>({
-    queryKey: ["project-tasks", projectId, status, priority, type, assigneeId, milestoneId, epicId],
-    queryFn: () => retrieveProjectTasks({
+  const serverFilters = useMemo<ProjectTasksParams>(
+    () => ({
       projectId,
       status,
       priority,
@@ -26,8 +54,18 @@ export default function useProjectTasks(projectId: string) {
       assigneeId,
       milestoneId,
       epicId,
+      sprintId,
     }),
-    enabled: !!projectId,
+    [projectId, status, priority, type, assigneeId, milestoneId, epicId, sprintId],
+  );
+
+  // NOTE: backend `TaskQueryDto` does not support a `search` field, so it is
+  // applied client-side below; only server-side filters are part of the query
+  // key so we don't refetch on every keystroke.
+  const { data, isLoading, isError } = useQuery<ProjectTaskType[]>({
+    queryKey: projectQueryKeys.tasks.list(projectId, serverFilters),
+    queryFn: () => retrieveProjectTasks(serverFilters),
+    enabled: !!projectId && (options?.enabled ?? true),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -56,7 +94,10 @@ export default function useProjectTasks(projectId: string) {
     typeState: [type, setType] as [string | undefined, (s: string | undefined) => void],
     assigneeState: [assigneeId, setAssigneeId] as [string | undefined, (s: string | undefined) => void],
     milestoneState: [milestoneId, setMilestoneId] as [string | undefined, (s: string | undefined) => void],
-    epicState: [epicId, setEpicId] as [string | undefined, (s: string | undefined) => void],
+    epicState: [epicId, setEpicId] as [
+      string | null | undefined,
+      (s: string | null | undefined) => void,
+    ],
     setDisplayedTasks,
   };
 }

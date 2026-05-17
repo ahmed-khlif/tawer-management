@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -9,11 +9,13 @@ import {
   Calendar,
   CheckCircle2,
   FolderKanban,
+  Sparkles,
   Star,
   TimerReset,
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { format } from "date-fns";
 
@@ -26,6 +28,7 @@ import { MetricCard } from "@/modules/projects/components/shared/metric-card";
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   AvatarIndicator,
 } from "@/components/ui/avatar";
 import {
@@ -53,6 +56,7 @@ import {
   businessUnitNamed,
 } from "@/modules/projects/utils/badges/project-badges";
 import type { ProjectType } from "@/modules/projects/types/projects";
+import { shouldShowOnboarding } from "@/modules/projects/utils/onboarding-state";
 
 // ─── Time progress helpers ────────────────────────────────────────────────────
 function computeTimeProgress(
@@ -313,9 +317,12 @@ function RecentProjectItem({ project }: { project: ProjectType }) {
                   const name =
                     member.memberName || member.user?.name || "Member";
                   return (
-                    <Tooltip key={member.id}>
+                      <Tooltip key={member.id}>
                       <TooltipTrigger asChild>
                         <Avatar className="size-6 border bg-background text-[10px]">
+                          {member.user?.image ? (
+                            <AvatarImage src={member.user.image} alt={name} />
+                          ) : null}
                           <AvatarFallback className="text-[10px] font-semibold">
                             {getMemberInitials(
                               member.memberName,
@@ -378,8 +385,12 @@ function RecentProjectItem({ project }: { project: ProjectType }) {
 
 export default function DashboardHomePage() {
   const t = useTranslations("shared.welcome");
+  const router = useRouter();
   const { user, isLoading } = useCurrentUser();
-  const overviewQuery = useExecutiveAnalyticsOverview();
+  const isExecutive = user?.roles.some((role) =>
+    ["ceo", "cto", "cmo"].includes(String(role)),
+  );
+  const overviewQuery = useExecutiveAnalyticsOverview(isExecutive);
   const employeeSummaryQuery = useEmployeeAnalyticsSummary(user?.id);
   const employeeProductivityQuery = useEmployeeProductivityMetrics(user?.id);
   const remindersQuery = useMyReminders({
@@ -399,9 +410,6 @@ export default function DashboardHomePage() {
     refetchOnWindowFocus: false,
   });
 
-  const isExecutive = user?.roles.some((role) =>
-    ["ceo", "cto", "cmo"].includes(String(role)),
-  );
   const reminderItems = useMemo(
     () => remindersQuery.data?.data ?? [],
     [remindersQuery.data?.data],
@@ -412,6 +420,12 @@ export default function DashboardHomePage() {
   );
 
   const activeRecent = recentProjects.filter((p) => !p.isArchived).length;
+
+  useEffect(() => {
+    if (!isLoading && user && shouldShowOnboarding()) {
+      router.replace("/dashboard/onboarding");
+    }
+  }, [isLoading, router, user]);
 
   if (isLoading) {
     return <Loading />;
@@ -425,15 +439,27 @@ export default function DashboardHomePage() {
       <section className="rounded-2xl border bg-gradient-to-r from-primary/10 via-background to-chart-2/10 p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
-              {t("companyDefault", { defaultValue: "Tawer Management" })}
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight">
-              {t("welcome", {
-                name: firstName,
-                defaultValue: `Welcome, ${firstName}`,
-              })}
-            </h1>
+            <div className="flex items-center gap-3">
+              <Avatar className="size-12 border-2 border-background/80 shadow-sm">
+                {user?.image ? (
+                  <AvatarImage src={user.image} alt={fullName} />
+                ) : null}
+                <AvatarFallback className="text-sm font-semibold">
+                  {getInitials(fullName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-2">
+                <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
+                  {t("companyDefault", { defaultValue: "Tawer Management" })}
+                </p>
+                <h1 className="text-3xl font-bold tracking-tight">
+                  {t("welcome", {
+                    name: firstName,
+                    defaultValue: `Welcome, ${firstName}`,
+                  })}
+                </h1>
+              </div>
+            </div>
             <p className="max-w-2xl text-sm text-muted-foreground">
               Your workspace is now backed by live project, reminder, sprint,
               and analytics data from the backend.
@@ -445,6 +471,12 @@ export default function DashboardHomePage() {
               <Link href="/dashboard/projects">
                 <Briefcase className="mr-2 size-4" />
                 Open projects
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/onboarding">
+                <Sparkles className="mr-2 size-4" />
+                View onboarding
               </Link>
             </Button>
             <Button asChild variant="outline">

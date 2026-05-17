@@ -31,6 +31,7 @@ import {
   Scale,
   Calculator,
   Activity,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -48,6 +49,7 @@ import { useTranslations } from "next-intl";
 import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import { useMyReminders } from "@/modules/reminders/hooks/use-reminders";
 import { canSeeAnalyticsNav } from "@/modules/analytics/utils/access";
+import { canViewProjectActivity } from "@/modules/projects/utils/activity-access";
 
 type NavGroup = {
   title: string;
@@ -76,6 +78,7 @@ export function getNavItems({
   pendingReminderCount?: number;
 }): NavGroup[] {
   const canViewAnalytics = canSeeAnalyticsNav(user.roles);
+  const canViewActivityHistory = canViewProjectActivity(user.roles);
 
   return [
     {
@@ -94,10 +97,25 @@ export function getNavItems({
           }
         ] : []),
         {
+          title: "Project Templates",
+          href: "/dashboard/project-templates",
+          icon: Sparkles,
+          disabled: !hasPermissions(user.roles, "projectsManagement", "view"),
+        },
+        {
           title: t("navigation.projectsManagement"),
           href: "/dashboard/projects",
           icon: SquareKanbanIcon
         },
+        ...(canViewActivityHistory
+          ? [
+              {
+                title: "Activity History",
+                href: "/dashboard/activity",
+                icon: Activity,
+              },
+            ]
+          : []),
       ]
     },
     {
