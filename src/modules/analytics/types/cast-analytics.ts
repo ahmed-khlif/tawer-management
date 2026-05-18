@@ -1,6 +1,9 @@
 import {
+  AnalyticsTrendPoint,
+  EmployeeAnalyticsSnapshot,
   EmployeeAnalyticsSummary,
   EmployeeProductivityMetrics,
+  ExecutiveAnalyticsSnapshot,
   ExecutiveAnalyticsOverview,
 } from "@/modules/analytics/types";
 
@@ -51,5 +54,58 @@ export function castEmployeeProductivityMetrics(
       Number.isFinite(raw.onTimeRatePercent)
         ? raw.onTimeRatePercent
         : null,
+  };
+}
+
+function castTrendPoint(raw: AnalyticsTrendPoint): AnalyticsTrendPoint {
+  return {
+    label: raw.label,
+    value: numberOrZero(raw.value),
+  };
+}
+
+export function castExecutiveAnalyticsSnapshot(
+  raw: ExecutiveAnalyticsSnapshot,
+): ExecutiveAnalyticsSnapshot {
+  return {
+    scopeLabel: raw.scopeLabel ?? "Viewing: Executive Portfolio",
+    completionTrend: Array.isArray(raw.completionTrend)
+      ? raw.completionTrend.map(castTrendPoint)
+      : [],
+    overdueTrend: Array.isArray(raw.overdueTrend)
+      ? raw.overdueTrend.map(castTrendPoint)
+      : [],
+    riskProjects: Array.isArray(raw.riskProjects)
+      ? raw.riskProjects.map((project) => ({
+          projectId: project.projectId,
+          projectName: project.projectName,
+          businessUnit: project.businessUnit,
+          status: project.status,
+          overdueTasks: numberOrZero(project.overdueTasks),
+          openTasks: numberOrZero(project.openTasks),
+          endDate: project.endDate ?? null,
+          summary: project.summary,
+        }))
+      : [],
+  };
+}
+
+export function castEmployeeAnalyticsSnapshot(
+  raw: EmployeeAnalyticsSnapshot,
+): EmployeeAnalyticsSnapshot {
+  return {
+    userId: raw.userId,
+    userName: raw.userName ?? null,
+    workloadLabel: raw.workloadLabel ?? "Watch",
+    sharedProjectCount: numberOrZero(raw.sharedProjectCount),
+    completedTrend: Array.isArray(raw.completedTrend)
+      ? raw.completedTrend.map(castTrendPoint)
+      : [],
+    onTimeTrend: Array.isArray(raw.onTimeTrend)
+      ? raw.onTimeTrend.map(castTrendPoint)
+      : [],
+    workloadTrend: Array.isArray(raw.workloadTrend)
+      ? raw.workloadTrend.map(castTrendPoint)
+      : [],
   };
 }

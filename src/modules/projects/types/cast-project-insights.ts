@@ -1,5 +1,6 @@
 import {
   ProjectAiInsights,
+  ProjectDashboardSnapshot,
   ProjectCapacity,
   ProjectProductivityMetrics,
   ProjectReportOverview,
@@ -119,6 +120,11 @@ export function castProjectAiInsights(raw: ProjectAiInsights): ProjectAiInsights
           code: anomaly.code,
           message: anomaly.message,
           severity: anomaly.severity,
+          title: anomaly.title,
+          targetType: anomaly.targetType,
+          targetId: anomaly.targetId,
+          ownerUserId: anomaly.ownerUserId,
+          recommendedAction: anomaly.recommendedAction,
         }))
       : [],
     recommendations: Array.isArray(raw.recommendations)
@@ -127,5 +133,114 @@ export function castProjectAiInsights(raw: ProjectAiInsights): ProjectAiInsights
             typeof recommendation === "string",
         )
       : [],
+  };
+}
+
+export function castProjectDashboardSnapshot(
+  raw: ProjectDashboardSnapshot,
+): ProjectDashboardSnapshot {
+  return {
+    projectId: raw.projectId,
+    projectName: raw.projectName,
+    businessUnit: raw.businessUnit,
+    projectType: raw.projectType,
+    health: {
+      score: numberOrZero(raw.health?.score),
+      status: raw.health?.status ?? "WATCH",
+      summary: raw.health?.summary ?? "",
+      drivers: Array.isArray(raw.health?.drivers)
+        ? raw.health.drivers.map((driver) => ({
+            key: driver.key,
+            label: driver.label,
+            impact: numberOrZero(driver.impact),
+            value: numberOrZero(driver.value),
+            summary: driver.summary,
+          }))
+        : [],
+    },
+    delivery: {
+      totalTasks: numberOrZero(raw.delivery?.totalTasks),
+      completedTasks: numberOrZero(raw.delivery?.completedTasks),
+      openTasks: numberOrZero(raw.delivery?.openTasks),
+      overdueTasks: numberOrZero(raw.delivery?.overdueTasks),
+      blockedTasks: numberOrZero(raw.delivery?.blockedTasks),
+      stuckTasks: numberOrZero(raw.delivery?.stuckTasks),
+      completionPercent: numberOrZero(raw.delivery?.completionPercent),
+      summary: raw.delivery?.summary ?? "",
+      activeSprintLabel: raw.delivery?.activeSprintLabel ?? null,
+      milestonePressureLabel: raw.delivery?.milestonePressureLabel ?? null,
+    },
+    capacity: {
+      activeSprints: numberOrZero(raw.capacity?.activeSprints),
+      totalCapacityPoints: numberOrZero(raw.capacity?.totalCapacityPoints),
+      totalCommittedPoints: numberOrZero(raw.capacity?.totalCommittedPoints),
+      totalRemainingPoints: numberOrZero(raw.capacity?.totalRemainingPoints),
+      overloadedMembers: numberOrZero(raw.capacity?.overloadedMembers),
+      underutilizedMembers: numberOrZero(raw.capacity?.underutilizedMembers),
+      riskLevel: raw.capacity?.riskLevel ?? "LOW",
+      rankedMembers: Array.isArray(raw.capacity?.rankedMembers)
+        ? raw.capacity.rankedMembers.map((member) => ({
+            userId: member.userId,
+            name: member.name,
+            assignedTasks: numberOrZero(member.assignedTasks),
+            openTasks: numberOrZero(member.openTasks),
+            completedTasks: numberOrZero(member.completedTasks),
+            overdueTasks: numberOrZero(member.overdueTasks),
+            workloadSharePercent: numberOrZero(member.workloadSharePercent),
+            utilizationPercent: numberOrZero(member.utilizationPercent),
+            committedPoints: numberOrZero(member.committedPoints),
+            capacityPoints: numberOrZero(member.capacityPoints),
+            loadStatus: member.loadStatus ?? "HEALTHY",
+          }))
+        : [],
+    },
+    ai: {
+      estimateQuality: {
+        completedTasksWithEstimates: numberOrZero(
+          raw.ai?.estimateQuality?.completedTasksWithEstimates,
+        ),
+        estimateMaeHours: numberOrZero(raw.ai?.estimateQuality?.estimateMaeHours),
+        onEstimateRatePercent: numberOrZero(
+          raw.ai?.estimateQuality?.onEstimateRatePercent,
+        ),
+        qualityStatus: raw.ai?.estimateQuality?.qualityStatus ?? "WATCH",
+        summary: raw.ai?.estimateQuality?.summary ?? "",
+      },
+      anomalies: Array.isArray(raw.ai?.anomalies)
+        ? raw.ai.anomalies.map((anomaly) => ({
+            code: anomaly.code,
+            message: anomaly.message,
+            severity: anomaly.severity,
+            title: anomaly.title,
+            targetType: anomaly.targetType,
+            targetId: anomaly.targetId,
+            ownerUserId: anomaly.ownerUserId,
+            recommendedAction: anomaly.recommendedAction,
+          }))
+        : [],
+      actions: Array.isArray(raw.ai?.actions)
+        ? raw.ai.actions.map((action) => ({
+            code: action.code,
+            title: action.title,
+            message: action.message,
+            severity: action.severity,
+            why: action.why,
+            recommendedAction: action.recommendedAction,
+            targetType: action.targetType,
+            targetId: action.targetId,
+            ownerUserId: action.ownerUserId,
+          }))
+        : [],
+    },
+    trends: {
+      delivery: Array.isArray(raw.trends?.delivery)
+        ? raw.trends.delivery.map((point) => ({
+            label: point.label,
+            completedTasks: numberOrZero(point.completedTasks),
+            createdTasks: numberOrZero(point.createdTasks),
+            overdueOpenTasks: numberOrZero(point.overdueOpenTasks),
+          }))
+        : [],
+    },
   };
 }

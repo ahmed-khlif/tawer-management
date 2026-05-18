@@ -15,10 +15,16 @@ export function cleanUserChangementDataToUpload(data: UserChangementFormSchema):
 
   // Append 'content' and 'metaContent' array as a JSON string
   formData.append(`name`, data.fullName);
-  formData.append(
-    `phone`,
-    getPhoneNumberDetails(data.phone, process.env.COUNTRY_CODE as CountryCode)?.number || ""
-  );
+  const normalizedPhone = data.phone?.trim()
+    ? getPhoneNumberDetails(
+        data.phone,
+        process.env.COUNTRY_CODE as CountryCode,
+      )?.number
+    : undefined;
+
+  if (normalizedPhone) {
+    formData.append(`phone`, normalizedPhone);
+  }
 
   //image addition
   if (data.image) formData.append(`image`, data.image);
@@ -40,11 +46,22 @@ export function cleanSignUpDataToUpload(data: SignUpFormSchemaType): FormData {
   // Append 'content' and 'metaContent' array as a JSON string
   formData.append(`name`, data.name);
   formData.append(`email`, data.email);
-  formData.append(`phone`, getPhoneNumberDetails(data.phone, process.env.COUNTRY_CODE as CountryCode)?.number as string);
   formData.append(`password`, data.password);
+  const normalizedPhone = data.phone?.trim()
+    ? getPhoneNumberDetails(
+        data.phone,
+        process.env.COUNTRY_CODE as CountryCode,
+      )?.number
+    : undefined;
+
+  if (normalizedPhone) {
+    formData.append(`phone`, normalizedPhone);
+  }
 
   //image addition
-  formData.append(`image`, data.image);
+  if (data.image) {
+    formData.append(`image`, data.image);
+  }
 
   return formData;
 }

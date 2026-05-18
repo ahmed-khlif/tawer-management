@@ -14,7 +14,7 @@ interface Props {
   timeLabel: string;
   minDate?: Date;
   maxDate?: Date;
-  /** When true, empty values stay empty (no implicit “today”). Use for optional epic/milestone/task dates. */
+  /** When true, empty values stay empty (no implicit "today"). Use for optional epic/milestone/task dates. */
   allowEmpty?: boolean;
   /** Shown on the date trigger when `allowEmpty` and the field has no value */
   emptyPlaceholder?: string;
@@ -31,14 +31,11 @@ export default function TimeInput({
 }: Props) {
   const form = useFormContext();
 
-  const StartHour = 0;
-  const EndHour = 24;
+  const startHour = 0;
+  const endHour = 24;
 
-  // EDITED: added null guard — updateDateTime can receive undefined when form field not yet initialized
-  const updateDateTime = (
-    currentValue: string,
-    timeString: string
-  ) => {
+  // Guard against empty values while keeping the shared date/time control reusable.
+  const updateDateTime = (currentValue: string, timeString: string) => {
     if (!currentValue) return;
     const date = parseISO(currentValue);
     const [hours, minutes] = timeString.split(":").map(Number);
@@ -48,16 +45,17 @@ export default function TimeInput({
 
   const timeOptions = useMemo(() => {
     const options = [];
-    for (let hour = StartHour; hour <= EndHour; hour++) {
+    for (let hour = startHour; hour <= endHour; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
-        const val = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
-        options.push({ value: val, label: format(new Date(2000, 0, 1, hour, minute), "h:mm a") });
+        const value = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
+        options.push({
+          value,
+          label: format(new Date(2000, 0, 1, hour, minute), "h:mm a"),
+        });
       }
     }
     return options;
   }, []);
-
-
 
   return (
     <FormField
@@ -82,10 +80,7 @@ export default function TimeInput({
                         type="button"
                         variant="outline"
                         className="w-full justify-between font-normal">
-                        <span
-                          className={
-                            !hasValue && allowEmpty ? "text-muted-foreground" : undefined
-                          }>
+                        <span className={!hasValue && allowEmpty ? "text-muted-foreground" : undefined}>
                           {hasValue && selectedDate
                             ? format(selectedDate, "PPP")
                             : allowEmpty
@@ -134,21 +129,17 @@ export default function TimeInput({
                 <FormLabel>{timeLabel}</FormLabel>
                 <Select
                   disabled={allowEmpty && !hasValue}
-                  onValueChange={(v) => updateDateTime(form.getValues(inputName) as string, v)}
-                  value={
-                    hasValue && raw
-                      ? format(parseISO(raw), "HH:mm")
-                      : undefined
-                  }>
+                  onValueChange={(value) => updateDateTime(form.getValues(inputName) as string, value)}
+                  value={hasValue && raw ? format(parseISO(raw), "HH:mm") : undefined}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="—" />
+                      <SelectValue placeholder="--" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {timeOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                    {timeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

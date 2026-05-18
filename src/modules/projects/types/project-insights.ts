@@ -32,6 +32,11 @@ export interface ProjectAnomaly {
   code: string;
   message: string;
   severity: "LOW" | "MEDIUM" | "HIGH";
+  title?: string;
+  targetType?: "TASK" | "SPRINT" | "MILESTONE" | "USER" | "PROJECT";
+  targetId?: string;
+  ownerUserId?: string;
+  recommendedAction?: string;
 }
 
 export interface ProjectAiInsights {
@@ -39,6 +44,106 @@ export interface ProjectAiInsights {
   metrics: ProjectAiMetrics;
   anomalies: ProjectAnomaly[];
   recommendations: string[];
+}
+
+export interface ProjectDashboardHealthDriver {
+  key: string;
+  label: string;
+  impact: number;
+  value: number;
+  summary: string;
+}
+
+export interface ProjectDashboardHealth {
+  score: number;
+  status: "HEALTHY" | "WATCH" | "AT_RISK";
+  summary: string;
+  drivers: ProjectDashboardHealthDriver[];
+}
+
+export interface ProjectDashboardDelivery {
+  totalTasks: number;
+  completedTasks: number;
+  openTasks: number;
+  overdueTasks: number;
+  blockedTasks: number;
+  stuckTasks: number;
+  completionPercent: number;
+  summary: string;
+  activeSprintLabel?: string | null;
+  milestonePressureLabel?: string | null;
+}
+
+export interface ProjectDashboardMemberLoad {
+  userId: string;
+  name: string;
+  assignedTasks: number;
+  openTasks: number;
+  completedTasks: number;
+  overdueTasks: number;
+  workloadSharePercent: number;
+  utilizationPercent: number;
+  committedPoints: number;
+  capacityPoints: number;
+  loadStatus: "HEALTHY" | "WATCH" | "OVERLOADED" | "UNDERUTILIZED";
+}
+
+export interface ProjectDashboardCapacity {
+  activeSprints: number;
+  totalCapacityPoints: number;
+  totalCommittedPoints: number;
+  totalRemainingPoints: number;
+  overloadedMembers: number;
+  underutilizedMembers: number;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  rankedMembers: ProjectDashboardMemberLoad[];
+}
+
+export interface ProjectDashboardAiAction {
+  code: string;
+  title: string;
+  message: string;
+  severity: "LOW" | "MEDIUM" | "HIGH";
+  why: string;
+  recommendedAction: string;
+  targetType?: "TASK" | "SPRINT" | "MILESTONE" | "USER" | "PROJECT";
+  targetId?: string;
+  ownerUserId?: string;
+}
+
+export interface ProjectDashboardEstimateQuality {
+  completedTasksWithEstimates: number;
+  estimateMaeHours: number;
+  onEstimateRatePercent: number;
+  qualityStatus: "STRONG" | "WATCH" | "AT_RISK";
+  summary: string;
+}
+
+export interface ProjectDashboardAi {
+  estimateQuality: ProjectDashboardEstimateQuality;
+  anomalies: ProjectAnomaly[];
+  actions: ProjectDashboardAiAction[];
+}
+
+export interface ProjectDashboardTrendPoint {
+  label: string;
+  completedTasks: number;
+  createdTasks: number;
+  overdueOpenTasks: number;
+}
+
+export interface ProjectDashboardSnapshot {
+  projectId: string;
+  projectName: string;
+  businessUnit?: string;
+  projectType?: string;
+  health: ProjectDashboardHealth;
+  delivery: ProjectDashboardDelivery;
+  capacity: ProjectDashboardCapacity;
+  ai: ProjectDashboardAi;
+  trends: {
+    delivery: ProjectDashboardTrendPoint[];
+  };
 }
 
 export interface ProjectReportOverview {

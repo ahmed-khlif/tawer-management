@@ -35,7 +35,7 @@ export function TaskSelector({
   projectId,
   selectedTaskIds,
   onChange,
-  placeholder = "Select sprint tasks...",
+  placeholder = "Select project tasks...",
   sprintId,
   currentEpicId,
   disabled = false,
@@ -83,21 +83,21 @@ export function TaskSelector({
             role="combobox"
             aria-expanded={open}
             className="h-auto w-full justify-between px-3 py-2 font-normal"
-            disabled={isLoading || disabled || !sprintId}
+            disabled={isLoading || disabled}
           >
             <span className="truncate">
               {selectedTasks.length > 0
                 ? `${selectedTasks.length} tasks selected`
-                : sprintId
-                  ? placeholder
-                  : placeholder}
+                : placeholder}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command className="max-h-[300px]">
-            <CommandInput placeholder="Search sprint tasks..." />
+            <CommandInput
+              placeholder={sprintId ? "Search sprint tasks..." : "Search project tasks..."}
+            />
             <CommandList>
               <CommandEmpty>
                 {sprintId

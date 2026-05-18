@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Plus } from "lucide-react";
+import { AlertCircle, CalendarRange, Plus, Sparkles, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +61,74 @@ export default function EpicDetailSheet({
 
             <ScrollArea className="h-[calc(100vh-6rem)] pr-4">
               <div className="space-y-4 p-1">
+                <Card className="overflow-hidden border-border/60">
+                  <CardContent className="space-y-4 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "size-3 rounded-full border",
+                              !epic.color && "pm-accent-epic-default",
+                            )}
+                            style={epic.color ? { backgroundColor: epic.color } : undefined}
+                          />
+                          {epic.aiRiskLevel ? (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                                epic.aiRiskLevel === "HIGH"
+                                  ? "pm-tone-destructive border"
+                                  : epic.aiRiskLevel === "MEDIUM"
+                                    ? "pm-tone-warning border"
+                                    : "pm-tone-success border",
+                              )}
+                            >
+                              {epic.aiRiskLevel} risk
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <div>
+                          <p className="text-2xl font-semibold tracking-tight">{epic.name}</p>
+                          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                            {epic.description || "No description provided."}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-right">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                          Initiative progress
+                        </p>
+                        <p className="mt-1 text-3xl font-semibold">{Math.round(epic.progress)}%</p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <CalendarRange className="size-4" />
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Timeline</p>
+                        </div>
+                        <p className="mt-2 text-sm font-medium">{formatDate(epic.startDate)} - {formatDate(epic.endDate)}</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Target className="size-4" />
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Scope</p>
+                        </div>
+                        <p className="mt-2 text-sm font-medium">{epic.doneTasks}/{epic.totalTasks} tasks done</p>
+                      </div>
+                      <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Sparkles className="size-4" />
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Sprint anchor</p>
+                        </div>
+                        <p className="mt-2 text-sm font-medium">{epic.sprintName || "No sprint linked"}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle>Epic progress</CardTitle>
@@ -132,6 +200,27 @@ export default function EpicDetailSheet({
                     </p>
                   </CardContent>
                 </Card>
+
+                {epic.aiRecommendations?.length ? (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <AlertCircle className="size-4" />
+                        AI guidance
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {epic.aiRecommendations.map((recommendation) => (
+                        <div
+                          key={recommendation}
+                          className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm text-muted-foreground"
+                        >
+                          {recommendation}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ) : null}
 
                 <Card>
                   <CardHeader>

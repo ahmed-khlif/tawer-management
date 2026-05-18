@@ -41,3 +41,29 @@ export async function fetchProjectActivity(
     throw error;
   }
 }
+
+export async function fetchAllProjectActivity(
+  filters: ProjectActivityFilters,
+): Promise<ProjectActivityListResponse["data"]> {
+  const pageSize = filters.limit ?? 100;
+  const firstPage = await fetchProjectActivity({ ...filters, page: 1, limit: pageSize });
+  if (!firstPage) return [];
+
+  const totalPages = Math.max(firstPage.pagination.totalPages ?? 1, 1);
+  if (totalPages === 1) return firstPage.data;
+
+  const rest = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      fetchProjectActivity({
+        ...filters,
+        page: index + 2,
+        limit: pageSize,
+      }),
+    ),
+  );
+
+  return [
+    ...firstPage.data,
+    ...rest.flatMap((page) => page?.data ?? []),
+  ];
+}

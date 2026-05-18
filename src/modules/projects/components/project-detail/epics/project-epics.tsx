@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { LayoutList, Plus, Search, X, Activity, CheckCircle2, Clock, ShieldAlert, ShieldCheck, ShieldEllipsis, SlidersHorizontal, AlertCircle, Layers } from "lucide-react";
+import { LayoutList, Plus, Search, X, Activity, CheckCircle2, Clock, ShieldAlert, ShieldCheck, ShieldEllipsis, SlidersHorizontal, AlertCircle, Layers, Sparkles, CalendarRange, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ErrorBanner } from "@/components/error-banner";
 import { PermissionGuard } from "@/components/permission-guard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   InputGroup,
   InputGroupAddon,
@@ -33,6 +35,9 @@ interface ProjectEpicsProps {
   project: ProjectType;
   permissions: ProjectPermissions;
 }
+
+const formatDate = (value?: string | null) =>
+  value ? new Date(value).toLocaleDateString() : "No date";
 
 export default function ProjectEpics({ project, permissions }: ProjectEpicsProps) {
   const router = useRouter();
@@ -124,6 +129,22 @@ export default function ProjectEpics({ project, permissions }: ProjectEpicsProps
   const completed =
     data?.data?.filter((e) => e.totalTasks > 0 && e.doneTasks >= e.totalTasks)
       .length ?? 0;
+  const timelineEpics = useMemo(
+    () =>
+      [...(data?.data ?? [])]
+        .filter((epic) => epic.startDate || epic.endDate)
+        .sort((a, b) => {
+          const aTime = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+          const bTime = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+          return aTime - bTime;
+        })
+        .slice(0, 8),
+    [data?.data],
+  );
+  const spotlightEpic =
+    epics.find((epic) => epic.aiRiskLevel === "HIGH") ??
+    epics.find((epic) => epic.totalTasks > 0 && epic.doneTasks < epic.totalTasks) ??
+    epics[0];
 
   const headerStrip = (
     <PageHeaderStrip
@@ -187,6 +208,166 @@ export default function ProjectEpics({ project, permissions }: ProjectEpicsProps
   return (
     <div className="space-y-4">
       {headerStrip}
+
+      {epics.length > 0 ? (
+        <Card className="overflow-hidden border-border/60 bg-card/80">
+          <CardHeader className="pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Epic ribbon</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A light view of initiative timing, sprint attachment, and progress.
+                </p>
+              </div>
+              {spotlightEpic ? (
+                <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                  <Sparkles className="mr-1 size-3.5" />
+                  {spotlightEpic.name}
+                </Badge>
+                ) : null}
+              </div>
+            </CardHeader>
+          <CardContent className="space-y-4 pb-5">
+            {spotlightEpic ? (
+              <div
+                className="rounded-[1.5rem] border border-border/60 px-5 py-4"
+                style={{
+                  background: spotlightEpic.color
+                    ? `linear-gradient(135deg, ${spotlightEpic.color}14, transparent 62%)`
+                    : "linear-gradient(135deg, hsl(var(--primary) / 0.06), transparent 62%)",
+                }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div
+                        className="size-3 rounded-full border"
+                        style={{ backgroundColor: spotlightEpic.color || "var(--primary)" }}
+                      />
+                      {spotlightEpic.aiRiskLevel ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                            spotlightEpic.aiRiskLevel === "HIGH"
+                              ? "pm-tone-destructive border"
+                              : spotlightEpic.aiRiskLevel === "MEDIUM"
+                                ? "pm-tone-warning border"
+                                : "pm-tone-success border",
+                          )}
+                        >
+                          {spotlightEpic.aiRiskLevel}
+                        </Badge>
+                      ) : null}
+                      <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                        {spotlightEpic.sprintName || "No sprint linked"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-lg font-semibold tracking-tight">{spotlightEpic.name}</p>
+                      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                        {spotlightEpic.description || "This initiative anchors the current epic view with scope, timing, and progress."}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="min-w-[190px] rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Progress</span>
+                      <span>{Math.round(spotlightEpic.progress)}%</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          spotlightEpic.aiRiskLevel === "HIGH"
+                            ? "bg-destructive"
+                            : spotlightEpic.aiRiskLevel === "MEDIUM"
+                              ? "bg-amber-500"
+                              : "bg-primary",
+                        )}
+                        style={{ width: `${Math.max(6, Math.round(spotlightEpic.progress))}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {spotlightEpic.doneTasks}/{spotlightEpic.totalTasks} tasks complete
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {timelineEpics.length > 0 ? (
+              timelineEpics.map((epic, index) => (
+                <button
+                  key={epic.id}
+                  type="button"
+                  onClick={() => setSelectedEpic(epic)}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-[1.35rem] border px-4 py-3 text-left transition hover:border-primary/30 hover:bg-muted/20",
+                    spotlightEpic?.id === epic.id ? "border-primary/25 bg-primary/[0.03] shadow-sm" : "border-border/60 bg-background/60",
+                  )}
+                >
+                  <div className="flex flex-col items-center pt-1">
+                    <div
+                      className="size-3 rounded-full border"
+                      style={{ backgroundColor: epic.color || "var(--primary)" }}
+                    />
+                    {index < timelineEpics.length - 1 ? (
+                      <div className="mt-1 h-10 w-px bg-border" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="truncate text-sm font-semibold">{epic.name}</p>
+                      {epic.aiRiskLevel ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                            epic.aiRiskLevel === "HIGH"
+                              ? "pm-tone-destructive border"
+                              : epic.aiRiskLevel === "MEDIUM"
+                                ? "pm-tone-warning border"
+                                : "pm-tone-success border",
+                          )}
+                        >
+                          {epic.aiRiskLevel}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{formatDate(epic.startDate)} - {formatDate(epic.endDate)}</span>
+                      <span>•</span>
+                      <span>{epic.sprintName || "No sprint linked"}</span>
+                      <span>•</span>
+                      <span>{Math.round(epic.progress)}%</span>
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          epic.aiRiskLevel === "HIGH"
+                            ? "bg-destructive"
+                            : epic.aiRiskLevel === "MEDIUM"
+                              ? "bg-amber-500"
+                              : "bg-primary",
+                        )}
+                        style={{ width: `${Math.max(6, Math.round(epic.progress))}%` }}
+                      />
+                    </div>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <EmptyState
+                icon={CalendarRange}
+                message="No epic timeline yet"
+                description="Add epic dates to unlock a clearer sequence of initiative delivery."
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Toolbar
         tabs={

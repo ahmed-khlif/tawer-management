@@ -1,5 +1,6 @@
 "use client";;
 import { useEffect } from "react";
+import { CalendarDays } from "lucide-react";
 import { RiDeleteBinLine } from "@remixicon/react";
 import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +25,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -32,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useEventStore } from "../../store/events";
 import useEventUpload from "../../hooks/event-actions/use-event-upload";
 import UsersExtractionInput from "@/modules/users/components/users-extraction-input";
@@ -40,7 +43,7 @@ import getEventTailwindColor from "../../utils/event-colors";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import TimeInput from "@/components/time-input";
-import retrieveProjects from "@/modules/projects/services/api/projects";
+import { retrieveAllProjects } from "@/modules/projects/services";
 
 interface EventDialogProps {
   event: CalendarEventType | null;
@@ -65,12 +68,10 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
   const projectsQuery = useQuery({
     queryKey: ["event-project-options"],
     queryFn: async () => {
-      const result = await retrieveProjects({
-        page: 1,
-        limit: 100,
+      return retrieveAllProjects({
         isArchived: false,
+        sortBy: "createdAtDesc",
       });
-      return result?.data ?? [];
     },
     enabled: isOpen && eventType !== "personalEvent",
     staleTime: 5 * 60 * 1000,
@@ -114,136 +115,204 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[450px]">
-        <DialogHeader>
-          <DialogTitle>{event?.id ? t("dialog.title.edit") : t("dialog.title.create")}</DialogTitle>
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-border/70 bg-card/98 sm:max-w-[520px]">
+        <DialogHeader className="rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] via-background to-transparent p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm ring-1 ring-primary/10">
+              <CalendarDays className="size-5" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <DialogTitle>{event?.id ? t("dialog.title.edit") : t("dialog.title.create")}</DialogTitle>
+                <Badge variant="outline" className="border-primary/15 bg-background/80 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  {eventType === "personalEvent" ? "Personal" : eventType}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Plan timing, participants, and project context in the same PM-friendly flow.
+              </p>
+            </div>
+          </div>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("dialog.fields.title")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 shadow-sm">
+              <div className="mb-4 space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">Event brief</h3>
+                <p className="text-xs text-muted-foreground">
+                  Start with the event name and a short summary your team can understand at a glance.
+                </p>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="allUsers"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-y-0">
-                  <FormControl>
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>{t("dialog.fields.allUsers")}</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("dialog.fields.title")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {/* Participants (Only show if not All Users) */}
-            {!watchAllUsers && eventType !== "personalEvent" && (
-              <UsersExtractionInput
-                inputName="participantsId"
-                label={t("dialog.fields.participants")}
-              />
-            )}
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          rows={4}
+                          placeholder="Add the agenda, purpose, or follow-up context for this event."
+                          {...field}
+                          value={field.value ?? ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            {eventType !== "personalEvent" ? (
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("dialog.fields.location")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.04] via-background to-transparent p-4 shadow-sm">
+              <div className="mb-4 space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">Scheduling and audience</h3>
+                <p className="text-xs text-muted-foreground">
+                  Choose timing, visibility, and participants so the event lands in the right PM context.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="allUsers"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start gap-3 space-y-0 rounded-xl border border-border/70 bg-background/90 p-3 shadow-sm">
+                      <FormControl>
+                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>{t("dialog.fields.allUsers")}</FormLabel>
+                        <p className="text-xs text-muted-foreground">
+                          Enable this when the update should appear for everyone in scope.
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {!watchAllUsers && eventType !== "personalEvent" && (
+                  <UsersExtractionInput
+                    inputName="participantsId"
+                    label={t("dialog.fields.participants")}
+                  />
+                )}
+
+                {eventType !== "personalEvent" ? (
+                  <FormField
+                    control={form.control}
+                    name="projectId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project context</FormLabel>
+                        <Select
+                          value={field.value || "none"}
+                          onValueChange={(value) =>
+                            field.onChange(value === "none" ? "" : value)
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a project (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none">No linked project</SelectItem>
+                            {(projectsQuery.data ?? []).map((project) => (
+                              <SelectItem key={project.id} value={project.id}>
+                                {project.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Link this meeting or event to a project so it appears in the PM calendar too.
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ) : null}
+
+                <div className="space-y-4">
+                  <TimeInput inputName="startTime" dateLabel={t("dialog.fields.startDate")} timeLabel={t("dialog.fields.startTime")} />
+                  <TimeInput inputName="endTime" dateLabel={t("dialog.fields.endDate")} timeLabel={t("dialog.fields.endTime")} />
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-background/70 p-4 shadow-sm">
+              <div className="mb-4 space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">Visual signal</h3>
+                <p className="text-xs text-muted-foreground">
+                  Pick a color your team can quickly recognize in the shared calendar.
+                </p>
+              </div>
+
               <FormField
                 control={form.control}
-                name="projectId"
+                name="color"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project context</FormLabel>
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(value) =>
-                        field.onChange(value === "none" ? "" : value)
-                      }
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a project (optional)" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No linked project</SelectItem>
-                        {(projectsQuery.data ?? []).map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.name}
-                          </SelectItem>
+                    <FormLabel>{t("dialog.fields.color")}</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="flex flex-wrap gap-2">
+                        {["sky", "amber", "violet", "rose", "emerald", "orange"].map((c) => (
+                          <FormItem key={c} className="flex items-center">
+                            <FormControl>
+                              <RadioGroupItem
+                                value={c}
+                                className={cn(
+                                  "size-7 border-none shadow-sm ring-2 ring-background",
+                                  getEventTailwindColor(c as EventColor)
+                                )}
+                              />
+                            </FormControl>
+                          </FormItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Link this meeting or event to a project so it appears in the PM calendar too.
-                    </p>
-                    <FormMessage />
+                      </RadioGroup>
+                    </FormControl>
                   </FormItem>
                 )}
               />
-            ) : null}
-
-            <TimeInput inputName="startTime" dateLabel={t("dialog.fields.startDate")} timeLabel={t("dialog.fields.startTime")} />
-
-            <TimeInput inputName="endTime" dateLabel={t("dialog.fields.endDate")} timeLabel={t("dialog.fields.endTime")} />
-
-            <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("dialog.fields.location")}</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("dialog.fields.color")}</FormLabel>
-                  <FormControl>
-                    <RadioGroup
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      className="flex gap-2">
-                      {["sky", "amber", "violet", "rose", "emerald", "orange"].map((c) => (
-                        <FormItem key={c} className="flex items-center">
-                          <FormControl>
-                            <RadioGroupItem
-                              value={c}
-                              className={cn(
-                                "size-6 border-none shadow-none",
-                                getEventTailwindColor(c as EventColor)
-                              )}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      ))}
-                    </RadioGroup>
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            </div>
             {error && <ErrorBanner error={error} />}
 
-            <DialogFooter className="flex-row pt-4 sm:justify-between">
+            <DialogFooter className="flex-row border-t border-border/60 pt-4 sm:justify-between">
               {event?.id && (
                 <Button
                   type="button"

@@ -8,6 +8,7 @@ import {
   BarChart3,
   CalendarCheck2,
   CheckCircle2,
+  Download,
   Filter,
   FolderKanban,
   ListTodo,
@@ -16,11 +17,15 @@ import {
   TimerReset,
   Trophy,
   Users,
+  ChevronRight,
 } from "lucide-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { ErrorBanner } from "@/components/error-banner";
+import { ExportMenuButton } from "@/components/export-menu-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,22 +36,29 @@ import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import {
   useEmployeeAnalyticsSummary,
   useEmployeeProductivityMetrics,
+  useExecutiveAnalyticsSnapshot,
   useExecutiveAnalyticsOverview,
 } from "@/modules/analytics/hooks/use-analytics";
 import fetchProjectStatusCounts from "@/modules/projects/services/api/project-status-counts";
+import { retrieveProjects } from "@/modules/projects/services";
 
 import { MetricCard } from "@/modules/projects/components/shared/metric-card";
 import { FilterPanel } from "@/modules/projects/components/shared/filter-panel";
 import { FilterSection } from "@/modules/projects/components/shared/filter-section";
 
 import { StatusDonutChart, MetricComparisonChart } from "./analytics-charts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { exportReportToPdfPrintWindow, exportRowsToCsv } from "@/lib/report-export";
+import { canExportExecutiveAnalytics } from "@/modules/analytics/utils/access";
 
 export default function ExecutiveDashboard() {
   const t = useTranslations("modules.analytics"); // Assuming you have translations for analytics
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
+  const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
 
   const overviewQuery = useExecutiveAnalyticsOverview();
+  const overviewSnapshotQuery = useExecutiveAnalyticsSnapshot();
   const summaryQuery = useEmployeeAnalyticsSummary(user?.id);
   const productivityQuery = useEmployeeProductivityMetrics(user?.id);
   
@@ -55,21 +67,106 @@ export default function ExecutiveDashboard() {
     queryFn: () => fetchProjectStatusCounts({ isArchived: false }),
     refetchOnWindowFocus: false,
   });
+  const projectsQuery = useQuery({
+    queryKey: ["projects-executive-analytics"],
+    queryFn: () =>
+      retrieveProjects({
+        page: 1,
+        limit: 8,
+        isArchived: false,
+      }),
+    refetchOnWindowFocus: false,
+  });
 
   const isFetching =
     overviewQuery.isFetching ||
+    overviewSnapshotQuery.isFetching ||
     summaryQuery.isFetching ||
     productivityQuery.isFetching ||
-    statusCountsQuery.isFetching;
+    statusCountsQuery.isFetching ||
+    projectsQuery.isFetching;
+  const canExport = canExportExecutiveAnalytics(user?.roles);
 
   const handleRefresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["analytics-overview"] });
+    void queryClient.invalidateQueries({ queryKey: ["analytics-overview-snapshot"] });
     void queryClient.invalidateQueries({ queryKey: ["analytics-employee-summary"] });
     void queryClient.invalidateQueries({ queryKey: ["analytics-employee-productivity"] });
     void queryClient.invalidateQueries({ queryKey: ["projects-status-counts-executive"] });
+    void queryClient.invalidateQueries({ queryKey: ["projects-executive-analytics"] });
   };
 
-  if (overviewQuery.error || summaryQuery.error || productivityQuery.error) {
+  const handleExportCsv = () => {
+    if (!canExport || !overview) return;
+    setExporting("csv");
+    try {
+      exportRowsToCsv(
+        `executive-analytics-${new Date().toISOString().slice(0, 10)}.csv`,
+        [
+          { key: "metric", label: "Metric" },
+          { key: "value", label: "Value" },
+          { key: "notes", label: "Notes" },
+        ],
+        [
+          { metric: "Total projects", value: overview.totalProjects, notes: scopeLabel },
+          { metric: "Total tasks", value: overview.totalTasks, notes: "Portfolio workload" },
+          { metric: "Completed tasks", value: overview.completedTasks, notes: `${completionRate}% completion` },
+          { metric: "Open tasks", value: overview.openTasks, notes: "Outstanding work" },
+          { metric: "Active sprints", value: overview.activeSprints, notes: "Parallel sprint load" },
+          { metric: "Project members", value: overview.totalProjectMembers, notes: "Visible contributors" },
+          ...(overviewSnapshot?.riskProjects.map((project) => ({
+            metric: `Risk: ${project.projectName}`,
+            value: project.status,
+            notes: `${project.overdueTasks} overdue / ${project.openTasks} open`,
+          })) ?? []),
+        ],
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPdf = () => {
+    if (!canExport || !overview) return;
+    setExporting("pdf");
+    try {
+      exportReportToPdfPrintWindow({
+        filename: `executive-analytics-${new Date().toISOString().slice(0, 10)}.pdf`,
+        title: "Executive Analytics",
+        subtitle: scopeLabel,
+        sections: [
+          {
+            title: "Portfolio overview",
+            rows: [
+              { label: "Total projects", value: String(overview.totalProjects) },
+              { label: "Total tasks", value: String(overview.totalTasks) },
+              { label: "Completed tasks", value: String(overview.completedTasks) },
+              { label: "Open tasks", value: String(overview.openTasks) },
+              { label: "Completion rate", value: `${completionRate}%` },
+              { label: "Active sprints", value: String(overview.activeSprints) },
+              { label: "Visible contributors", value: String(overview.totalProjectMembers) },
+            ],
+          },
+          ...(overviewSnapshot?.riskProjects.length
+            ? overviewSnapshot.riskProjects.slice(0, 8).map((project) => ({
+                title: project.projectName,
+                rows: [
+                  { label: "Business unit", value: project.businessUnit ?? "N/A" },
+                  { label: "Status", value: project.status },
+                  { label: "Open tasks", value: String(project.openTasks) },
+                  { label: "Overdue tasks", value: String(project.overdueTasks) },
+                  { label: "Summary", value: project.summary },
+                ],
+              }))
+            : []),
+        ],
+      });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  if (overviewQuery.error || overviewSnapshotQuery.error || summaryQuery.error || productivityQuery.error) {
     return (
       <ErrorBanner
         error="Unable to load executive analytics."
@@ -79,11 +176,29 @@ export default function ExecutiveDashboard() {
   }
 
   const overview = overviewQuery.data;
+  const overviewSnapshot = overviewSnapshotQuery.data;
   const summary = summaryQuery.data;
   const productivity = productivityQuery.data;
   const statusCounts = statusCountsQuery.data;
+  const rankedProjects =
+    projectsQuery.data?.data
+      ?.slice()
+      .sort((a, b) => {
+        const statusRank = (status: string) =>
+          status === "Stopped" ? 3 : status === "Pending" ? 2 : status === "Running" ? 1 : 0;
+        return (
+          statusRank(b.status) - statusRank(a.status) ||
+          a.endTime.getTime() - b.endTime.getTime()
+        );
+      })
+      .slice(0, 5) ?? [];
 
-  const isLoading = overviewQuery.isLoading || summaryQuery.isLoading || productivityQuery.isLoading;
+  const isLoading =
+    overviewQuery.isLoading ||
+    overviewSnapshotQuery.isLoading ||
+    summaryQuery.isLoading ||
+    productivityQuery.isLoading ||
+    projectsQuery.isLoading;
 
   const completionRate =
     overview && overview.totalTasks > 0
@@ -121,6 +236,8 @@ export default function ExecutiveDashboard() {
       ]
     : [];
 
+  const scopeLabel = overviewSnapshot?.scopeLabel ?? "Viewing: Executive Portfolio";
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -144,16 +261,26 @@ export default function ExecutiveDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleRefresh}
-          disabled={isFetching}
-          className="gap-1.5"
-        >
-          {isFetching ? <Spinner className="size-4" /> : <RefreshCw className="size-4" />}
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {canExport ? (
+            <ExportMenuButton
+              exporting={exporting}
+              onExportCsv={handleExportCsv}
+              onExportPdf={handleExportPdf}
+              className="gap-1.5"
+            />
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="gap-1.5"
+          >
+            {isFetching ? <Spinner className="size-4" /> : <RefreshCw className="size-4" />}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
@@ -254,8 +381,13 @@ export default function ExecutiveDashboard() {
             <CardContent className="relative p-0">
               <div className="grid gap-6 p-8 lg:grid-cols-[1.5fr_1fr]">
                 <div className="space-y-6">
-                  <div className="space-y-2">
-                    <Badge variant="outline" className="pm-tone-running font-medium shadow-sm">{t("hero.momentum")}</Badge>
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="pm-tone-running font-medium shadow-sm">{t("hero.momentum")}</Badge>
+                      <Badge variant="outline" className="pm-tone-info font-medium shadow-sm">
+                        {scopeLabel}
+                      </Badge>
+                    </div>
                     <h2 className="text-3xl font-bold tracking-tight text-foreground">{t("hero.title")}</h2>
                     <p className="text-sm text-muted-foreground max-w-xl leading-relaxed">
                       {t("hero.description", { tasks: overview?.totalTasks ?? 0, projects: overview?.totalProjects ?? 0 })}
@@ -316,6 +448,30 @@ export default function ExecutiveDashboard() {
             </CardContent>
           </Card>
 
+          <div className="grid gap-4 md:grid-cols-3">
+            <MetricCard
+              icon={Target}
+              label="30-day delivery posture"
+              value={`${completionRate}%`}
+              hint="Current completion rate across the active portfolio"
+              tone={completionRate >= 75 ? "success" : completionRate >= 50 ? "info" : "warning"}
+            />
+            <MetricCard
+              icon={Activity}
+              label="7-day sprint pressure"
+              value={overview?.activeSprints ?? 0}
+              hint="Active sprint lanes requiring near-term attention"
+              tone={(overview?.activeSprints ?? 0) > 0 ? "info" : "default"}
+            />
+            <MetricCard
+              icon={Users}
+              label="Portfolio staffing surface"
+              value={overview?.totalProjectMembers ?? 0}
+              hint="Contributors currently represented in active projects"
+              tone="default"
+            />
+          </div>
+
           {/* Visualization Row */}
           <div className="grid gap-6 lg:grid-cols-2">
             <StatusDonutChart
@@ -330,6 +486,179 @@ export default function ExecutiveDashboard() {
               data={taskDistribution}
               totalLabel="Tasks"
             />
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <Card className="border-border/60 bg-card/70 backdrop-blur-sm shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Portfolio trend windows</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Weekly completion and overdue movement across your current executive scope.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {overviewSnapshot ? (
+                  <ChartContainer
+                    className="h-[280px] w-full"
+                    config={{
+                      completion: { label: "Completed", color: "var(--pm-project-completed-accent)" },
+                      overdue: { label: "Overdue", color: "var(--pm-project-stopped-accent)" },
+                    }}
+                  >
+                    <AreaChart
+                      data={overviewSnapshot.completionTrend.map((point, index) => ({
+                        label: point.label,
+                        completion: point.value,
+                        overdue: overviewSnapshot.overdueTrend[index]?.value ?? 0,
+                      }))}
+                    >
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="label" axisLine={false} tickLine={false} />
+                      <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Area
+                        type="monotone"
+                        dataKey="completion"
+                        stroke="var(--color-completion)"
+                        fill="var(--color-completion)"
+                        fillOpacity={0.18}
+                        strokeWidth={2.4}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="overdue"
+                        stroke="var(--color-overdue)"
+                        fill="var(--color-overdue)"
+                        fillOpacity={0.08}
+                        strokeWidth={2}
+                        strokeDasharray="5 4"
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                ) : null}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 bg-card/70 backdrop-blur-sm shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Portfolio risk ranking</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Highest-risk projects from the backend analytics snapshot.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overviewSnapshot?.riskProjects.length ? overviewSnapshot.riskProjects.map((project) => (
+                  <div
+                    key={project.projectId}
+                    className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{project.projectName}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {project.businessUnit} · {project.openTasks} open · {project.overdueTasks} overdue
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          project.status === "Stopped"
+                            ? "pm-badge-risk-high border"
+                            : project.overdueTasks > 0
+                              ? "pm-badge-risk-medium border"
+                              : "pm-tone-info border"
+                        }
+                      >
+                        {project.status}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{project.summary}</p>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-4 py-8 text-sm text-muted-foreground">
+                    No ranked project risks are available yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <Card className="border-border/60 bg-card/70 backdrop-blur-sm shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">At-risk projects now</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Ranked from the current visible portfolio to highlight delayed or interrupted delivery first.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {rankedProjects.length ? rankedProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{project.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {project.businessUnit} · due {project.endTime.toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={
+                          project.status === "Stopped"
+                            ? "pm-badge-risk-high border"
+                            : project.status === "Pending"
+                              ? "pm-badge-risk-medium border"
+                              : project.status === "Running"
+                                ? "pm-tone-info border"
+                                : "pm-badge-risk-low border"
+                        }
+                      >
+                        {project.status}
+                      </Badge>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-border/70 px-4 py-8 text-sm text-muted-foreground">
+                    No active portfolio risk ranking is available yet.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 bg-card/70 backdrop-blur-sm shadow-sm transition-all duration-300 hover:shadow-md hover:border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Your executive workspace</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Keep your personal delivery lens separate from the portfolio view.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    Personal rhythm
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {Math.round(productivity?.onTimeRatePercent ?? 0)}% on-time rate with{" "}
+                    {productivity?.hoursLogged ?? 0} logged hours across your own tracked work.
+                  </p>
+                </div>
+                <Button asChild variant="outline" className="w-full justify-between">
+                  <Link href={`/dashboard/analytics/employees/${user?.id}`}>
+                    Open Employee Analytics
+                    <ChevronRight className="size-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-between">
+                  <Link href={`/dashboard/users/profile/me`}>
+                    Open My Profile Tracking
+                    <ChevronRight className="size-4" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Productivity Section */}

@@ -7,6 +7,29 @@ export interface ExecutiveAnalyticsOverview {
   totalProjectMembers: number;
 }
 
+export interface AnalyticsTrendPoint {
+  label: string;
+  value: number;
+}
+
+export interface ExecutiveRiskProject {
+  projectId: string;
+  projectName: string;
+  businessUnit?: string;
+  status: string;
+  overdueTasks: number;
+  openTasks: number;
+  endDate?: string | null;
+  summary: string;
+}
+
+export interface ExecutiveAnalyticsSnapshot {
+  scopeLabel: string;
+  completionTrend: AnalyticsTrendPoint[];
+  overdueTrend: AnalyticsTrendPoint[];
+  riskProjects: ExecutiveRiskProject[];
+}
+
 export interface EmployeeAnalyticsSummary {
   userId: string;
   userName: string | null;
@@ -26,4 +49,14 @@ export interface EmployeeProductivityMetrics {
   onTimeCompletedTasks: number;
   lateCompletedTasks: number;
   onTimeRatePercent: number | null;
+}
+
+export interface EmployeeAnalyticsSnapshot {
+  userId: string;
+  userName: string | null;
+  workloadLabel: "Healthy Load" | "Watch" | "Overloaded";
+  sharedProjectCount: number;
+  completedTrend: AnalyticsTrendPoint[];
+  onTimeTrend: AnalyticsTrendPoint[];
+  workloadTrend: AnalyticsTrendPoint[];
 }

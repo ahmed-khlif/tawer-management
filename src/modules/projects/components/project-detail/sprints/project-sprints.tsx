@@ -1,10 +1,12 @@
 "use client";
 import React from "react";
+import DOMPurify from "dompurify";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, Calendar, Sparkles, TrendingUp, Activity, Clock, CheckCircle2, XCircle, Ban, SlidersHorizontal, Globe, Hourglass, Scale, Layers, Search } from "lucide-react";
+import { Plus, Calendar, Sparkles, Activity, Clock, CheckCircle2, XCircle, Ban, SlidersHorizontal, Globe, Hourglass, Scale, Layers, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -32,11 +34,9 @@ import {
 import { deleteSprint, uploadSprint } from "@/modules/projects/services";
 import useProjectSprints from "@/modules/projects/hooks/sprints/use-project-sprints";
 import useProjectPermissions from "@/modules/projects/hooks/permissions/use-project-permissions";
-import useSprintVelocity from "@/modules/projects/hooks/sprints/use-sprint-velocity";
 import SprintCard from "./sprint-card";
 import SprintDetailSheet from "./sprint-detail-sheet";
 import SprintUploadSheet from "./sprint-upload-sheet";
-import SprintVelocityChart from "./sprint-velocity-chart";
 import { Toolbar, type ToolbarFilterChip } from "../../shared/toolbar";
 import { FilterMenu, type FilterMenuCategory } from "../../shared/filter-menu";
 import { EmptyState } from "../../shared/empty-state";
@@ -46,6 +46,19 @@ import useMilestoneGantt from "@/modules/projects/hooks/milestones/use-milestone
 
 interface Props {
   project: ProjectType;
+}
+
+function toPlainTextDescription(value?: string | null) {
+  if (!value) {
+    return "The current sprint focus sits here, with its pace and scope visible at a glance.";
+  }
+
+  const sanitized = DOMPurify.sanitize(value, { ALLOWED_TAGS: [] });
+  const normalized = sanitized.replace(/\s+/g, " ").trim();
+  return (
+    normalized ||
+    "The current sprint focus sits here, with its pace and scope visible at a glance."
+  );
 }
 
 export default function ProjectSprints({ project }: Props) {
@@ -67,7 +80,6 @@ export default function ProjectSprints({ project }: Props) {
     durationState,
   } = useProjectSprints(project.id);
   const { canManageSprints } = useProjectPermissions(project);
-  const velocityQuery = useSprintVelocity(project.id);
   const [status, setStatus] = statusState;
   const [search, setSearch] = searchState;
   const [sortBy, setSortBy] = sortByState;
@@ -320,13 +332,29 @@ export default function ProjectSprints({ project }: Props) {
     >,
   );
 
-  const velocityData = velocityQuery.data;
-  const hasVelocityNumbers =
-    !!velocityData &&
-    velocityData.sprints.length > 0 &&
-    velocityData.sprints.some(
-      (s) => (s.completedPoints ?? 0) > 0 || (s.capacity ?? 0) > 0,
-    );
+  const timelineSprints = React.useMemo(
+    () =>
+      [...sprints]
+        .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+        .slice(0, 8),
+    [sprints],
+  );
+  const spotlightSprint =
+    timelineSprints.find((sprint) => sprint.status === "Running") ??
+    timelineSprints.find((sprint) => sprint.status === "Pending") ??
+    timelineSprints[0];
+  const spotlightDescription = toPlainTextDescription(
+    spotlightSprint?.description,
+  );
+  const getSprintProgress = React.useCallback((sprint: SprintType) => {
+    const totalTasks = sprint.tasks?.length ?? 0;
+    if (totalTasks === 0) return 0;
+    const completedTasks =
+      sprint.tasks?.filter((task) =>
+        ["DONE", "COMPLETED"].includes(task.status?.toUpperCase?.() ?? ""),
+      ).length ?? 0;
+    return Math.round((completedTasks / totalTasks) * 100);
+  }, []);
 
   return (
     <>
@@ -376,27 +404,150 @@ export default function ProjectSprints({ project }: Props) {
           }
         />
 
-        {/* Velocity card */}
-        {hasVelocityNumbers ? (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <TrendingUp className="size-4 text-primary" />
+        {timelineSprints.length > 0 ? (
+          <Card className="overflow-hidden border-border/60 bg-card/80">
+            <CardHeader className="pb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base">
-                    {t("velocity.title", { defaultValue: "Sprint velocity" })}
-                  </CardTitle>
+                  <CardTitle className="text-base">Sprint flow</CardTitle>
                   <CardDescription>
-                    {t("velocity.description", {
-                      defaultValue:
-                        "Completed points versus sprint capacity across finished sprints.",
-                    })}
+                    A light sequence of current and upcoming iterations.
                   </CardDescription>
                 </div>
+                {spotlightSprint ? (
+                  <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                    <Layers className="mr-1 size-3.5" />
+                    {spotlightSprint.name}
+                  </Badge>
+                ) : null}
               </div>
             </CardHeader>
-            <CardContent>
-              <SprintVelocityChart velocity={velocityData!} />
+            <CardContent className="space-y-4 pb-5">
+              {spotlightSprint ? (
+                <div className="rounded-[1.5rem] border border-border/60 bg-gradient-to-r from-primary/[0.06] via-background to-background px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                            spotlightSprint.status === "Running"
+                              ? "pm-tone-running border"
+                              : spotlightSprint.status === "Completed"
+                                ? "pm-tone-success border"
+                                : spotlightSprint.status === "Stopped"
+                                  ? "pm-tone-destructive border"
+                                  : "pm-tone-info border",
+                          )}
+                        >
+                          {spotlightSprint.status}
+                        </Badge>
+                        <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                          {spotlightSprint.startDate.toLocaleDateString()} - {spotlightSprint.endDate.toLocaleDateString()}
+                        </Badge>
+                        {typeof spotlightSprint.capacity === "number" ? (
+                          <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                            {spotlightSprint.capacity} pts
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold tracking-tight">{spotlightSprint.name}</p>
+                        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                          {spotlightDescription}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="min-w-[180px] rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Progress</span>
+                        <span>{getSprintProgress(spotlightSprint)}%</span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full",
+                            spotlightSprint.status === "Completed"
+                              ? "bg-emerald-500"
+                              : spotlightSprint.status === "Running"
+                                ? "bg-primary"
+                                : spotlightSprint.status === "Stopped"
+                                  ? "bg-destructive"
+                                  : "bg-amber-500",
+                          )}
+                          style={{ width: `${getSprintProgress(spotlightSprint)}%` }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {spotlightSprint.tasks?.length ?? 0} tasks in scope
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="overflow-x-auto">
+              <div className="flex min-w-max items-stretch gap-3">
+                {timelineSprints.map((sprint) => {
+                  const progress = getSprintProgress(sprint);
+                  const isSpotlight = spotlightSprint?.id === sprint.id;
+
+                  return (
+                    <button
+                      key={sprint.id}
+                      type="button"
+                      onClick={() => setSelectedSprint(sprint)}
+                      className={cn(
+                        "w-[228px] rounded-[1.35rem] border px-4 py-4 text-left transition hover:border-primary/30 hover:bg-muted/20",
+                        isSpotlight ? "border-primary/25 bg-primary/[0.03] shadow-sm" : "border-border/60 bg-background/60",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                            sprint.status === "Running"
+                              ? "pm-tone-running border"
+                              : sprint.status === "Completed"
+                                ? "pm-tone-success border"
+                                : sprint.status === "Stopped"
+                                  ? "pm-tone-destructive border"
+                                  : "pm-tone-info border",
+                          )}
+                        >
+                          {sprint.status}
+                        </Badge>
+                        <span className="text-[11px] text-muted-foreground">{progress}%</span>
+                      </div>
+                      <p className="mt-3 line-clamp-2 text-sm font-semibold">{sprint.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {sprint.startDate.toLocaleDateString()} - {sprint.endDate.toLocaleDateString()}
+                      </p>
+                      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            "h-full rounded-full",
+                            sprint.status === "Completed"
+                              ? "bg-emerald-500"
+                              : sprint.status === "Running"
+                                ? "bg-primary"
+                                : sprint.status === "Stopped"
+                                  ? "bg-destructive"
+                                  : "bg-amber-500",
+                          )}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {sprint.tasks?.length ?? 0} tasks{typeof sprint.capacity === "number" ? ` - ${sprint.capacity} pts` : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+              </div>
             </CardContent>
           </Card>
         ) : null}

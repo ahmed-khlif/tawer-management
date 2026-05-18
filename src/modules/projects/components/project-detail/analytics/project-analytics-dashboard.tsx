@@ -1,138 +1,237 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   BarChart3,
   BrainCircuit,
   CheckCircle2,
+  Download,
+  Gauge,
   RefreshCw,
   Sparkles,
   Target,
+  TrendingUp,
   Users,
 } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ErrorBanner } from "@/components/error-banner";
+import { ExportMenuButton } from "@/components/export-menu-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { fetchProjectCapacity } from "@/modules/projects/services/api/project-capacity";
-import { fetchProjectAiInsights } from "@/modules/projects/services/api/project-ai-insights";
-import {
-  fetchProjectProductivityMetrics,
-  fetchProjectReportOverview,
-  fetchProjectTeamWorkload,
-} from "@/modules/projects/services/api/project-report";
-import { EmptyState } from "../../shared/empty-state";
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import useProjectPermissions from "@/modules/projects/hooks/permissions/use-project-permissions";
-import {
-  FilterMenu,
-  type FilterMenuCategory,
-} from "../../shared/filter-menu";
+import { useProjectAnalyticsSnapshot } from "@/modules/projects/hooks/analytics/use-project-analytics-snapshot";
+import { EmptyState } from "../../shared/empty-state";
 import { MetricCard } from "../../shared/metric-card";
 import { PageHeaderStrip } from "../../shared/page-header-strip";
-import {
-  Toolbar,
-  type ToolbarFilterChip,
-} from "../../shared/toolbar";
-import ProjectCapacityView from "./project-capacity-view";
-import ProjectProductivityMetrics from "./project-productivity-metrics";
-import StatusDonutChart from "./status-donut-chart";
-import TeamPerformanceChart from "./team-performance-chart";
+import { exportReportToPdfPrintWindow, exportRowsToCsv } from "@/lib/report-export";
 
 interface ProjectAnalyticsDashboardProps {
   projectId: string;
 }
 
-type MemberScope = "all" | "focused" | "overloaded";
-
-function getSeverityClass(severity: "LOW" | "MEDIUM" | "HIGH") {
+function severityClass(severity: "LOW" | "MEDIUM" | "HIGH") {
   if (severity === "HIGH") return "pm-badge-risk-high border";
   if (severity === "MEDIUM") return "pm-badge-risk-medium border";
   return "pm-badge-risk-low border";
 }
 
-function getHealthTone(
-  overdueTasks: number,
-  stuckTasks: number,
-  riskLevel: "LOW" | "MEDIUM" | "HIGH",
-) {
-  if (riskLevel === "HIGH" || overdueTasks > 0 || stuckTasks > 1) {
-    return "pm-badge-risk-high border";
-  }
-  if (riskLevel === "MEDIUM" || stuckTasks > 0) {
-    return "pm-badge-risk-medium border";
-  }
+function healthToneClass(status: "HEALTHY" | "WATCH" | "AT_RISK") {
+  if (status === "AT_RISK") return "pm-badge-risk-high border";
+  if (status === "WATCH") return "pm-badge-risk-medium border";
   return "pm-badge-risk-low border";
 }
 
-function getMemberScopeLabel(scope: MemberScope) {
-  if (scope === "focused") return "Open work";
-  if (scope === "overloaded") return "Over capacity";
-  return "All members";
-}
-
-function resolveAnomalyGuidance(
-  code: string,
-  recommendations: string[],
-): string {
-  const normalized = code.toUpperCase();
-
-  if (normalized === "ASSIGNEE_OVERLOAD") {
-    return (
-      recommendations.find((item) => item.toLowerCase().includes("overloaded")) ??
-      "Rebalance assignments before the next commitment cycle."
-    );
-  }
-
-  if (normalized === "BLOCKED_TASK") {
-    return (
-      recommendations.find((item) => item.toLowerCase().includes("blocked")) ??
-      "Prioritize dependency resolution and unblock the chain."
-    );
-  }
-
-  if (normalized === "OVERDUE_TASK") {
-    return (
-      recommendations.find((item) => item.toLowerCase().includes("scope")) ??
-      recommendations.find((item) => item.toLowerCase().includes("estimate")) ??
-      "Review task scope and delivery dates with the owner."
-    );
-  }
-
-  return recommendations[0] ?? "Review this signal with the project team.";
+function memberLoadTone(loadStatus: "HEALTHY" | "WATCH" | "OVERLOADED" | "UNDERUTILIZED") {
+  if (loadStatus === "OVERLOADED") return "pm-badge-risk-high border";
+  if (loadStatus === "WATCH") return "pm-badge-risk-medium border";
+  if (loadStatus === "UNDERUTILIZED") return "pm-tone-info border";
+  return "pm-badge-risk-low border";
 }
 
 function ProjectAnalyticsSkeleton() {
   return (
     <div className="space-y-4">
       <Skeleton className="h-24 w-full" />
-      <Skeleton className="h-56 w-full" />
+      <Skeleton className="h-48 w-full" />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Skeleton key={index} className="h-40 w-full" />
+          <Skeleton key={index} className="h-32 w-full" />
         ))}
       </div>
-      <div className="grid gap-4 2xl:grid-cols-[0.95fr_1.45fr]">
-        <Skeleton className="h-[380px] w-full" />
-        <Skeleton className="h-[380px] w-full" />
+      <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <Skeleton className="h-[360px] w-full" />
+        <Skeleton className="h-[360px] w-full" />
       </div>
-      <div className="grid gap-4 2xl:grid-cols-[1.15fr_0.85fr]">
-        <Skeleton className="h-[360px] w-full" />
-        <Skeleton className="h-[360px] w-full" />
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <Skeleton className="h-[420px] w-full" />
+        <Skeleton className="h-[420px] w-full" />
       </div>
     </div>
+  );
+}
+
+function DeliveryTrendChart({
+  data,
+}: {
+  data: { label: string; completedTasks: number; createdTasks: number; overdueOpenTasks: number }[];
+}) {
+  return (
+    <Card className="border-border/60 bg-card/95 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-base">Delivery trend</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Recent weekly movement between created work, completed work, and overdue pressure.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {data.length ? (
+          <ChartContainer
+            className="h-[280px] w-full"
+            config={{
+              completedTasks: {
+                label: "Completed",
+                color: "var(--pm-project-completed-accent)",
+              },
+              createdTasks: {
+                label: "Created",
+                color: "var(--pm-project-running-accent)",
+              },
+              overdueOpenTasks: {
+                label: "Overdue",
+                color: "var(--pm-project-stopped-accent)",
+              },
+            }}
+          >
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id="deliveryCompleted" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-completedTasks)" stopOpacity={0.28} />
+                  <stop offset="95%" stopColor="var(--color-completedTasks)" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="deliveryCreated" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-createdTasks)" stopOpacity={0.22} />
+                  <stop offset="95%" stopColor="var(--color-createdTasks)" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="label" axisLine={false} tickLine={false} />
+              <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area
+                type="monotone"
+                dataKey="createdTasks"
+                stroke="var(--color-createdTasks)"
+                fill="url(#deliveryCreated)"
+                strokeWidth={2}
+              />
+              <Area
+                type="monotone"
+                dataKey="completedTasks"
+                stroke="var(--color-completedTasks)"
+                fill="url(#deliveryCompleted)"
+                strokeWidth={2.4}
+              />
+              <Area
+                type="monotone"
+                dataKey="overdueOpenTasks"
+                stroke="var(--color-overdueOpenTasks)"
+                fill="transparent"
+                strokeWidth={2}
+                strokeDasharray="5 4"
+              />
+            </AreaChart>
+          </ChartContainer>
+        ) : (
+          <EmptyState
+            icon={TrendingUp}
+            message="No trend data yet"
+            description="Project task history needs a bit more activity before the delivery trend becomes meaningful."
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MemberLoadChart({
+  data,
+}: {
+  data: {
+    name: string;
+    committedPoints: number;
+    capacityPoints: number;
+    utilizationPercent: number;
+  }[];
+}) {
+  return (
+    <Card className="border-border/60 bg-card/95 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-base">Team capacity pressure</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Committed points against planned capacity for the most pressured teammates.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {data.length ? (
+          <ChartContainer
+            className="h-[280px] w-full"
+            config={{
+              capacityPoints: {
+                label: "Capacity",
+                color: "var(--pm-project-running-accent)",
+              },
+              committedPoints: {
+                label: "Committed",
+                color: "var(--pm-project-completed-accent)",
+              },
+            }}
+          >
+            <BarChart data={data} barCategoryGap={18}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} />
+              <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar
+                dataKey="capacityPoints"
+                fill="var(--color-capacityPoints)"
+                radius={[8, 8, 0, 0]}
+              />
+              <Bar
+                dataKey="committedPoints"
+                fill="var(--color-committedPoints)"
+                radius={[8, 8, 0, 0]}
+              />
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <EmptyState
+            icon={Users}
+            message="No capacity data yet"
+            description="Active sprint planning data will populate the capacity comparison chart."
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -141,9 +240,10 @@ export function ProjectAnalyticsDashboard({
 }: ProjectAnalyticsDashboardProps) {
   const t = useTranslations("modules.projects.project.details");
   const queryClient = useQueryClient();
+  const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
   const permissions = useProjectPermissions(projectId);
+  const snapshotQuery = useProjectAnalyticsSnapshot(projectId);
 
-  // Restrict analytics access based on permissions
   if (!permissions.canViewAnalytics) {
     return (
       <EmptyState
@@ -153,86 +253,63 @@ export function ProjectAnalyticsDashboard({
       />
     );
   }
-  const [memberSearch, setMemberSearch] = useState("");
-  const [memberScope, setMemberScope] = useState<MemberScope>("all");
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
-  const [membersInitialized, setMembersInitialized] = useState(false);
 
-  const reportQuery = useQuery({
-    queryKey: ["project-report-overview", projectId],
-    queryFn: () => fetchProjectReportOverview(projectId),
-    enabled: !!projectId,
-  });
-  const productivityQuery = useQuery({
-    queryKey: ["project-productivity-metrics", projectId],
-    queryFn: () => fetchProjectProductivityMetrics(projectId),
-    enabled: !!projectId,
-  });
-  const workloadQuery = useQuery({
-    queryKey: ["project-team-workload", projectId],
-    queryFn: () => fetchProjectTeamWorkload(projectId),
-    enabled: !!projectId,
-  });
-  const capacityQuery = useQuery({
-    queryKey: ["project-capacity", projectId],
-    queryFn: () => fetchProjectCapacity(projectId),
-    enabled: !!projectId,
-  });
-  const aiInsightsQuery = useQuery({
-    queryKey: ["project-ai-insights", projectId],
-    queryFn: () => fetchProjectAiInsights(projectId),
-    enabled: !!projectId,
-  });
+  const handleRefresh = () => {
+    void queryClient.invalidateQueries({
+      queryKey: ["project-dashboard-snapshot", projectId],
+    });
+  };
 
-  const isFetching =
-    reportQuery.isFetching ||
-    productivityQuery.isFetching ||
-    workloadQuery.isFetching ||
-    capacityQuery.isFetching ||
-    aiInsightsQuery.isFetching;
-
-  const headerMetrics =
-    reportQuery.data && capacityQuery.data && aiInsightsQuery.data
-      ? [
-          {
-            key: "live",
-            icon: CheckCircle2,
-            tone: "success" as const,
-            label: "Live backend data",
-          },
-          {
-            key: "completion",
-            icon: Target,
-            tone: "running" as const,
-            value: `${Math.round(reportQuery.data.completionPercent)}%`,
-            label: "complete",
-          },
-          {
-            key: "sprints",
-            icon: Sparkles,
-            tone: "info" as const,
-            value: capacityQuery.data.activeSprints,
-            label: "active sprints",
-          },
-          {
-            key: "signals",
-            icon: AlertTriangle,
-            tone:
-              aiInsightsQuery.data.anomalies.length > 0
-                ? ("warning" as const)
-                : ("info" as const),
-            value: aiInsightsQuery.data.anomalies.length,
-            label: "AI signals",
-          },
-        ]
-      : [
-          {
-            key: "live",
-            icon: CheckCircle2,
-            tone: "success" as const,
-            label: "Live backend data",
-          },
-        ];
+  const headerMetrics = snapshotQuery.data
+    ? [
+        {
+          key: "health",
+          icon: Gauge,
+          tone:
+            snapshotQuery.data.health.status === "AT_RISK"
+              ? ("warning" as const)
+              : snapshotQuery.data.health.status === "WATCH"
+                ? ("info" as const)
+                : ("success" as const),
+          value: snapshotQuery.data.health.score,
+          label: "health score",
+        },
+        {
+          key: "completion",
+          icon: CheckCircle2,
+          tone: "success" as const,
+          value: `${Math.round(snapshotQuery.data.delivery.completionPercent)}%`,
+          label: "complete",
+        },
+        {
+          key: "capacity",
+          icon: Users,
+          tone:
+            snapshotQuery.data.capacity.overloadedMembers > 0
+              ? ("warning" as const)
+              : ("info" as const),
+          value: snapshotQuery.data.capacity.overloadedMembers,
+          label: "overloaded members",
+        },
+        {
+          key: "ai",
+          icon: BrainCircuit,
+          tone:
+            snapshotQuery.data.ai.actions.some((action) => action.severity === "HIGH")
+              ? ("warning" as const)
+              : ("info" as const),
+          value: snapshotQuery.data.ai.actions.length,
+          label: "AI actions",
+        },
+      ]
+    : [
+        {
+          key: "live",
+          icon: CheckCircle2,
+          tone: "success" as const,
+          label: "Live backend data",
+        },
+      ];
 
   const headerStrip = (
     <PageHeaderStrip
@@ -240,64 +317,85 @@ export function ProjectAnalyticsDashboard({
       title={t("analytics.title", { defaultValue: "Project Analytics" })}
       description={t("analytics.subtitle", {
         defaultValue:
-          "Track delivery health, team execution, and AI planning signals in one view.",
+          "One PM snapshot for delivery health, team capacity, and AI planning actions.",
       })}
       metrics={headerMetrics}
+      actions={
+        permissions.canViewAnalytics && snapshotQuery.data ? (
+          <ExportMenuButton
+            exporting={exporting}
+            onExportCsv={() => {
+              const snapshot = snapshotQuery.data;
+              if (!snapshot) return;
+              setExporting("csv");
+              try {
+                exportRowsToCsv(
+                  `project-analytics-${projectId}-${new Date().toISOString().slice(0, 10)}.csv`,
+                  [
+                    { key: "metric", label: "Metric" },
+                    { key: "value", label: "Value" },
+                    { key: "notes", label: "Notes" },
+                  ],
+                  [
+                    { metric: "Project", value: snapshot.projectName, notes: snapshot.projectType ?? "" },
+                    { metric: "Health score", value: snapshot.health.score, notes: snapshot.health.status },
+                    { metric: "Completion percent", value: `${Math.round(snapshot.delivery.completionPercent)}%`, notes: snapshot.delivery.summary },
+                    { metric: "Completed tasks", value: snapshot.delivery.completedTasks, notes: `${snapshot.delivery.totalTasks} total tasks` },
+                    { metric: "Overdue tasks", value: snapshot.delivery.overdueTasks, notes: "Delivery pressure" },
+                    { metric: "Blocked tasks", value: snapshot.delivery.blockedTasks, notes: "Blocked work" },
+                    { metric: "Overloaded members", value: snapshot.capacity.overloadedMembers, notes: `${snapshot.capacity.totalCommittedPoints}/${snapshot.capacity.totalCapacityPoints} pts` },
+                    { metric: "AI actions", value: snapshot.ai.actions.length, notes: `${snapshot.ai.anomalies.length} anomalies` },
+                  ],
+                );
+              } finally {
+                setExporting(null);
+              }
+            }}
+            onExportPdf={() => {
+              const snapshot = snapshotQuery.data;
+              if (!snapshot) return;
+              setExporting("pdf");
+              try {
+                exportReportToPdfPrintWindow({
+                  filename: `project-analytics-${projectId}-${new Date().toISOString().slice(0, 10)}.pdf`,
+                  title: `${snapshot.projectName} Project Analytics`,
+                  subtitle: snapshot.health.summary,
+                  sections: [
+                    {
+                      title: "Delivery health",
+                      rows: [
+                        { label: "Health score", value: String(snapshot.health.score) },
+                        { label: "Status", value: snapshot.health.status },
+                        { label: "Completion", value: `${Math.round(snapshot.delivery.completionPercent)}%` },
+                        { label: "Completed tasks", value: String(snapshot.delivery.completedTasks) },
+                        { label: "Overdue tasks", value: String(snapshot.delivery.overdueTasks) },
+                        { label: "Blocked tasks", value: String(snapshot.delivery.blockedTasks) },
+                      ],
+                    },
+                    {
+                      title: "Capacity and AI",
+                      rows: [
+                        { label: "Overloaded members", value: String(snapshot.capacity.overloadedMembers) },
+                        { label: "Underutilized members", value: String(snapshot.capacity.underutilizedMembers) },
+                        { label: "Estimate quality", value: snapshot.ai.estimateQuality.qualityStatus },
+                        { label: "AI actions", value: String(snapshot.ai.actions.length) },
+                        { label: "AI anomalies", value: String(snapshot.ai.anomalies.length) },
+                      ],
+                    },
+                  ],
+                });
+              } finally {
+                setExporting(null);
+              }
+            }}
+            className="gap-1.5"
+          />
+        ) : null
+      }
     />
   );
 
-  const allMembers = useMemo(
-    () =>
-      (workloadQuery.data?.members ?? [])
-        .map((member) => {
-          const capacityMember = (capacityQuery.data?.members ?? []).find(
-            (entry) => entry.userId === member.userId,
-          );
-
-          return {
-            ...member,
-            utilizationPercent: capacityMember?.utilizationPercent ?? 0,
-            committedPoints: capacityMember?.committedPoints ?? 0,
-            capacityPoints: capacityMember?.capacityPoints ?? 0,
-            isOverCapacity: capacityMember?.isOverCapacity ?? false,
-          };
-        })
-        .sort((a, b) => b.workloadSharePercent - a.workloadSharePercent),
-    [capacityQuery.data?.members, workloadQuery.data?.members],
-  );
-
-  useEffect(() => {
-    if (allMembers.length > 0 && !membersInitialized) {
-      setSelectedMemberIds(allMembers.map((member) => member.userId));
-      setMembersInitialized(true);
-    }
-  }, [allMembers, membersInitialized]);
-
-  const handleRefresh = () => {
-    void queryClient.invalidateQueries({
-      queryKey: ["project-report-overview", projectId],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["project-productivity-metrics", projectId],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["project-team-workload", projectId],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["project-capacity", projectId],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ["project-ai-insights", projectId],
-    });
-  };
-
-  if (
-    reportQuery.isLoading ||
-    productivityQuery.isLoading ||
-    workloadQuery.isLoading ||
-    capacityQuery.isLoading ||
-    aiInsightsQuery.isLoading
-  ) {
+  if (snapshotQuery.isLoading) {
     return (
       <div className="space-y-4">
         {headerStrip}
@@ -306,304 +404,82 @@ export function ProjectAnalyticsDashboard({
     );
   }
 
-  if (
-    reportQuery.error ||
-    productivityQuery.error ||
-    workloadQuery.error ||
-    capacityQuery.error ||
-    aiInsightsQuery.error
-  ) {
+  if (snapshotQuery.error || !snapshotQuery.data) {
     return (
       <div className="space-y-4">
         {headerStrip}
         <ErrorBanner
-          error={t("analytics.loadError", {
-            defaultValue: "Unable to load project analytics.",
-          })}
-          onRetry={() => {
-            void reportQuery.refetch();
-            void productivityQuery.refetch();
-            void workloadQuery.refetch();
-            void capacityQuery.refetch();
-            void aiInsightsQuery.refetch();
-          }}
+          error="Unable to load the project analytics snapshot."
+          onRetry={() => void snapshotQuery.refetch()}
         />
       </div>
     );
   }
 
-  if (
-    !reportQuery.data ||
-    !productivityQuery.data ||
-    !workloadQuery.data ||
-    !capacityQuery.data ||
-    !aiInsightsQuery.data
-  ) {
-    return (
-      <div className="space-y-4">
-        {headerStrip}
-        <EmptyState
-          icon={BarChart3}
-          message={t("analytics.emptyTitle", {
-            defaultValue: "No analytics available",
-          })}
-          description={t("analytics.emptyDescription", {
-            defaultValue: "This project does not have enough tracked data yet.",
-          })}
-        />
-      </div>
-    );
-  }
-
-  const report = reportQuery.data;
-  const productivity = productivityQuery.data;
-  const workload = workloadQuery.data;
-  const capacity = capacityQuery.data;
-  const aiInsights = aiInsightsQuery.data;
-
-  const effectiveSelectedMemberIds =
-    selectedMemberIds.length === 0 && !membersInitialized
-      ? allMembers.map((member) => member.userId)
-      : selectedMemberIds;
-
-  const filteredMembers = allMembers.filter((member) => {
-    const matchesSearch =
-      memberSearch.trim().length === 0 ||
-      member.name.toLowerCase().includes(memberSearch.trim().toLowerCase());
-    const matchesScope =
-      memberScope === "all" ||
-      (memberScope === "focused" && member.openTasks > 0) ||
-      (memberScope === "overloaded" && member.isOverCapacity);
-    const matchesSelection = effectiveSelectedMemberIds.includes(member.userId);
-
-    return matchesSearch && matchesScope && matchesSelection;
-  });
-
-  const filteredMemberIds = new Set(filteredMembers.map((member) => member.userId));
-  const filteredCapacityMembers = capacity.members.filter((member) =>
-    filteredMemberIds.has(member.userId),
-  );
-  const filteredProductivityMembers = productivity.members.filter((member) =>
-    filteredMemberIds.has(member.userId),
-  );
-
-  const allMembersSelected =
-    allMembers.length > 0 &&
-    effectiveSelectedMemberIds.length === allMembers.length;
-  const visibleMembersCount = filteredMembers.length;
-  const visibleAssignedTasks = filteredMembers.reduce(
-    (sum, member) => sum + member.assignedTasks,
-    0,
-  );
-  const visibleOpenTasks = filteredMembers.reduce(
-    (sum, member) => sum + member.openTasks,
-    0,
-  );
-  const visibleOverdueTasks = filteredMembers.reduce(
-    (sum, member) => sum + member.overdueTasks,
-    0,
-  );
-  const visibleLoggedHours = filteredMembers.reduce(
-    (sum, member) => sum + member.loggedHours,
-    0,
-  );
-  const visibleCommittedPoints = filteredCapacityMembers.reduce(
-    (sum, member) => sum + member.committedPoints,
-    0,
-  );
-  const visibleCapacityPoints = filteredCapacityMembers.reduce(
-    (sum, member) => sum + member.capacityPoints,
-    0,
-  );
-  const visibleAverageProductivity =
-    filteredProductivityMembers.length > 0
-      ? filteredProductivityMembers.reduce(
-          (sum, member) => sum + member.productivityScore,
-          0,
-        ) / filteredProductivityMembers.length
-      : 0;
-  const visibleOverloadedMembers = filteredCapacityMembers.filter(
-    (member) => member.isOverCapacity,
-  ).length;
-
-  const handleClearFilters = () => {
-    setMemberScope("all");
-    setSelectedMemberIds(allMembers.map((member) => member.userId));
-  };
-
-  const toggleMemberSelection = (memberId: string) => {
-    setSelectedMemberIds((current) => {
-      const base =
-        current.length === 0 && !membersInitialized
-          ? allMembers.map((member) => member.userId)
-          : current;
-
-      if (base.includes(memberId)) {
-        return base.filter((value) => value !== memberId);
-      }
-
-      return [...base, memberId];
-    });
-    setMembersInitialized(true);
-  };
-
-  const filterCategories: FilterMenuCategory[] = [
-    {
-      id: "scope",
-      label: "Member scope",
-      icon: Target,
-      multiple: false,
-      selectedIds: [memberScope],
-      onClear: () => setMemberScope("all"),
-      onToggle: (id) => setMemberScope(id as MemberScope),
-      options: [
-        { id: "all", label: "All members" },
-        { id: "focused", label: "Members with open work" },
-        { id: "overloaded", label: "Members over capacity" },
-      ],
-    },
-    {
-      id: "members",
-      label: "Team members",
-      icon: Users,
-      multiple: true,
-      selectedIds: effectiveSelectedMemberIds,
-      onClear: () => setSelectedMemberIds(allMembers.map((member) => member.userId)),
-      onToggle: toggleMemberSelection,
-      options: allMembers.map((member) => ({
-        id: member.userId,
-        label: member.name,
-        count: member.openTasks,
-        description: `${member.assignedTasks} assigned tasks`,
-      })),
-    },
-  ];
-
-  const activeFilters: ToolbarFilterChip[] = (() => {
-    const chips: ToolbarFilterChip[] = [];
-
-    if (memberScope !== "all") {
-      chips.push({
-        id: "member-scope",
-        prefix: "Scope:",
-        label: getMemberScopeLabel(memberScope),
-        onRemove: () => setMemberScope("all"),
-      });
-    }
-
-    if (!allMembersSelected && effectiveSelectedMemberIds.length > 0) {
-      chips.push({
-        id: "selected-members",
-        prefix: "Members:",
-        label: `${effectiveSelectedMemberIds.length} selected`,
-        onRemove: () =>
-          setSelectedMemberIds(allMembers.map((member) => member.userId)),
-      });
-    }
-
-    return chips;
-  })();
-
-  const activeFilterCount = activeFilters.length;
-
-  const activeTasks = Math.max(
-    report.openTasks - report.overdueTasks - report.stuckTasks,
-    0,
-  );
-  const deliveryBreakdown = [
+  const snapshot = snapshotQuery.data;
+  const heroTone = healthToneClass(snapshot.health.status);
+  const deliveryDistribution = [
     {
       key: "completed",
       label: "Completed",
-      value: report.completedTasks,
+      value: snapshot.delivery.completedTasks,
       color: "var(--pm-project-completed-accent)",
     },
     {
-      key: "active",
-      label: "Active",
-      value: activeTasks,
+      key: "open",
+      label: "Open",
+      value: Math.max(
+        snapshot.delivery.openTasks -
+          snapshot.delivery.overdueTasks -
+          snapshot.delivery.blockedTasks,
+        0,
+      ),
       color: "var(--pm-project-running-accent)",
     },
     {
       key: "overdue",
       label: "Overdue",
-      value: report.overdueTasks,
+      value: snapshot.delivery.overdueTasks,
       color: "var(--pm-project-stopped-accent)",
     },
     {
-      key: "stuck",
-      label: "Stuck",
-      value: report.stuckTasks,
+      key: "blocked",
+      label: "Blocked",
+      value: snapshot.delivery.blockedTasks,
       color: "var(--pm-tone-info-fg)",
     },
   ].filter((item) => item.value > 0);
 
-  const performanceData = filteredCapacityMembers
-    .slice()
-    .sort((a, b) => b.utilizationPercent - a.utilizationPercent)
-    .slice(0, 8)
-    .map((member) => ({
-      name: member.name,
-      planned: member.capacityPoints,
-      actual: member.committedPoints,
-    }));
-
-  const issueRows = aiInsights.anomalies.map((anomaly, index) => ({
-    key: `${anomaly.code}-${index}`,
-    issue: anomaly.message,
-    source: anomaly.code.replaceAll("_", " "),
-    severity: anomaly.severity,
-    guidance: resolveAnomalyGuidance(anomaly.code, aiInsights.recommendations),
+  const memberLoadChartData = snapshot.capacity.rankedMembers.slice(0, 6).map((member) => ({
+    name: member.name.split(" ")[0],
+    committedPoints: member.committedPoints,
+    capacityPoints: member.capacityPoints,
+    utilizationPercent: member.utilizationPercent,
   }));
 
-  const heroToneClass = getHealthTone(
-    report.overdueTasks,
-    report.stuckTasks,
-    capacity.riskLevel,
-  );
+  const topActions = snapshot.ai.actions.slice(0, 4);
+  const topAnomalies = snapshot.ai.anomalies.slice(0, 5);
 
   return (
     <div className="space-y-4">
       {headerStrip}
 
-      <Toolbar
-        search={memberSearch}
-        onSearchChange={setMemberSearch}
-        searchPlaceholder="Search teammates"
-        filterContent={
-          <FilterMenu
-            categories={filterCategories}
-            footer={
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Filters change the team-slice cards and charts below. Project
-                delivery and AI anomaly totals remain project-wide.
-              </p>
-            }
-          />
-        }
-        activeFilterCount={activeFilterCount}
-        activeFilters={activeFilters}
-        onClearAllFilters={
-          activeFilterCount > 0 ? handleClearFilters : undefined
-        }
-        actions={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isFetching}
-            className="gap-1.5"
-          >
-            {isFetching ? (
-              <Spinner className="size-4" />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
-            {t("analytics.refresh", { defaultValue: "Refresh" })}
-          </Button>
-        }
-        className="rounded-xl border bg-card px-4"
-        sticky={false}
-      />
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={snapshotQuery.isFetching}
+          className="gap-1.5"
+        >
+          {snapshotQuery.isFetching ? (
+            <Spinner className="size-4" />
+          ) : (
+            <RefreshCw className="size-4" />
+          )}
+          Refresh snapshot
+        </Button>
+      </div>
 
       <Card className="overflow-hidden border-border/60 bg-card/95 shadow-sm">
         <CardContent className="relative p-0">
@@ -611,107 +487,145 @@ export function ProjectAnalyticsDashboard({
             className="absolute inset-0 opacity-80"
             style={{
               background:
-                "linear-gradient(135deg, color-mix(in srgb, var(--pm-project-running-accent) 10%, transparent) 0%, transparent 45%, color-mix(in srgb, var(--pm-project-completed-accent) 9%, transparent) 100%)",
+                "linear-gradient(135deg, color-mix(in srgb, var(--pm-project-running-accent) 11%, transparent) 0%, transparent 50%, color-mix(in srgb, var(--pm-project-completed-accent) 9%, transparent) 100%)",
             }}
           />
-          <div className="relative grid gap-5 p-6 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="relative grid gap-5 p-6 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-2">
-                  <Badge variant="outline" className={heroToneClass}>
-                    Project-wide delivery health
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline" className={heroTone}>
+                      {snapshot.health.status.replace("_", " ")}
+                    </Badge>
+                    {snapshot.businessUnit ? (
+                      <Badge variant="outline" className="pm-tone-info">
+                        {snapshot.businessUnit}
+                      </Badge>
+                    ) : null}
+                    {snapshot.projectType ? (
+                      <Badge variant="outline" className="pm-tone-info">
+                        {snapshot.projectType}
+                      </Badge>
+                    ) : null}
+                  </div>
                   <div>
                     <h3 className="text-2xl font-semibold tracking-tight">
-                      Delivery status and planning confidence
+                      {snapshot.projectName} PM command center
                     </h3>
                     <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                      The summary below is project-wide. Team filters only affect
-                      the focused workload slice and capacity charts underneath.
+                      {snapshot.health.summary}
                     </p>
                   </div>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-background/80 px-4 py-3 backdrop-blur">
+                <div className="rounded-2xl border border-border/60 bg-background/85 px-4 py-3 backdrop-blur">
                   <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    Completion
+                    Project health
                   </p>
-                  <p className="mt-1 text-3xl font-semibold">
-                    {Math.round(report.completionPercent)}%
-                  </p>
+                  <p className="mt-1 text-4xl font-semibold">{snapshot.health.score}</p>
                 </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur">
+                <div className="rounded-2xl border border-[color:var(--pm-project-completed-accent)]/20 bg-background/88 p-4 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    Open work
-                  </p>
-                  <p className="mt-1 text-2xl font-semibold">{report.openTasks}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {report.overdueTasks} overdue and {report.stuckTasks} stale
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur">
-                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    Sprint load
+                    Delivery
                   </p>
                   <p className="mt-1 text-2xl font-semibold">
-                    {capacity.totalCommittedPoints}/{capacity.totalCapacityPoints}
+                    {Math.round(snapshot.delivery.completionPercent)}%
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Across {capacity.activeSprints} active sprints
+                    {snapshot.delivery.completedTasks}/{snapshot.delivery.totalTasks} tasks completed
                   </p>
                 </div>
-                <div className="rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur">
+                <div className="rounded-2xl border border-[color:var(--pm-project-running-accent)]/20 bg-background/88 p-4 shadow-sm">
                   <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    AI signals
+                    Team capacity
                   </p>
-                  <p className="mt-1 text-2xl font-semibold">{issueRows.length}</p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    {snapshot.capacity.totalCommittedPoints}/
+                    {snapshot.capacity.totalCapacityPoints}
+                  </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {aiInsights.recommendations.length} actions available
+                    {snapshot.capacity.overloadedMembers} overloaded,{" "}
+                    {snapshot.capacity.underutilizedMembers} underutilized
                   </p>
                 </div>
+                <div className="rounded-2xl border border-primary/20 bg-background/88 p-4 shadow-sm">
+                  <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                    AI copilot
+                  </p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    {snapshot.ai.actions.length}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {snapshot.ai.anomalies.length} anomaly signals detected
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-primary/12 bg-background/88 p-4 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                  What changed
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {snapshot.delivery.summary}
+                </p>
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              <div className="rounded-2xl border border-border/60 bg-background/85 p-4">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-primary/12 bg-background/90 p-4 shadow-sm">
                 <div className="mb-3 flex items-center gap-2">
-                  <Users className="size-4 text-primary" />
-                  <p className="text-sm font-medium">Selected team slice</p>
+                  <Target className="size-4 text-primary" />
+                  <p className="text-sm font-medium">Health drivers</p>
                 </div>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-center justify-between rounded-xl bg-muted/20 px-3 py-2">
-                    <span>Visible members</span>
-                    <span className="font-medium text-foreground">
-                      {visibleMembersCount}/{allMembers.length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-muted/20 px-3 py-2">
-                    <span>Open assigned work</span>
-                    <span className="font-medium text-foreground">
-                      {visibleOpenTasks}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-muted/20 px-3 py-2">
-                    <span>Capacity risk</span>
-                    <span className="font-medium text-foreground">
-                      {visibleOverloadedMembers}
-                    </span>
-                  </div>
+                <div className="space-y-2">
+                  {snapshot.health.drivers.slice(0, 4).map((driver) => (
+                    <div
+                      key={driver.key}
+                      className="rounded-xl border border-primary/10 bg-muted/15 px-3 py-2.5 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium">{driver.label}</p>
+                        <span className="text-xs font-semibold text-primary/80">
+                          {driver.impact > 0 ? "+" : ""}
+                          {driver.impact}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {driver.summary}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-border/60 bg-background/85 p-4">
+              <div className="rounded-2xl border border-primary/12 bg-background/90 p-4 shadow-sm">
                 <div className="mb-3 flex items-center gap-2">
-                  <BrainCircuit className="size-4 text-primary" />
-                  <p className="text-sm font-medium">Reading the dashboard</p>
+                  <Sparkles className="size-4 text-primary" />
+                  <p className="text-sm font-medium">Operational cues</p>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  AI anomalies stay project-wide because the backend returns
-                  them for the full project. The filters here help you inspect
-                  which part of the team slice is carrying the load.
-                </p>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/15 px-3 py-2 shadow-sm">
+                    <span>Active sprint</span>
+                    <span className="font-medium text-foreground">
+                      {snapshot.delivery.activeSprintLabel ?? "No active sprint"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/15 px-3 py-2 shadow-sm">
+                    <span>Milestone pressure</span>
+                    <span className="font-medium text-foreground">
+                      {snapshot.delivery.milestonePressureLabel ?? "Stable"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/15 px-3 py-2 shadow-sm">
+                    <span>Estimate quality</span>
+                    <span className="font-medium text-foreground">
+                      {snapshot.ai.estimateQuality.qualityStatus}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -720,166 +634,259 @@ export function ProjectAnalyticsDashboard({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          icon={Users}
-          label="Visible members"
-          value={`${visibleMembersCount}/${allMembers.length}`}
-          hint="Current team slice after filters"
-          tone="info"
-        />
-        <MetricCard
-          icon={Target}
-          label="Visible assigned work"
-          value={String(visibleAssignedTasks)}
-          hint={`${visibleOpenTasks} open | ${visibleOverdueTasks} overdue`}
-          tone={visibleOverdueTasks > 0 ? "warning" : "default"}
-        />
-        <MetricCard
-          icon={BarChart3}
-          label="Avg productivity"
-          value={visibleAverageProductivity.toFixed(1)}
-          hint="Across the selected members"
+          icon={CheckCircle2}
+          label="Completed work"
+          value={snapshot.delivery.completedTasks}
+          hint={`${snapshot.delivery.totalTasks} tracked tasks`}
           tone="success"
         />
         <MetricCard
-          icon={Sparkles}
-          label="Visible sprint load"
-          value={`${visibleCommittedPoints}/${visibleCapacityPoints}`}
-          hint={`${visibleLoggedHours.toFixed(1)}h logged by the current slice`}
-          tone={visibleOverloadedMembers > 0 ? "warning" : "default"}
+          icon={AlertTriangle}
+          label="Pressure"
+          value={`${snapshot.delivery.overdueTasks + snapshot.delivery.blockedTasks}`}
+          hint={`${snapshot.delivery.overdueTasks} overdue | ${snapshot.delivery.blockedTasks} blocked`}
+          tone={
+            snapshot.delivery.overdueTasks + snapshot.delivery.blockedTasks > 0
+              ? "warning"
+              : "default"
+          }
+        />
+        <MetricCard
+          icon={Users}
+          label="Capacity risk"
+          value={snapshot.capacity.overloadedMembers}
+          hint={`${snapshot.capacity.activeSprints} active sprints`}
+          tone={snapshot.capacity.overloadedMembers > 0 ? "warning" : "info"}
+        />
+        <MetricCard
+          icon={BrainCircuit}
+          label="Estimate quality"
+          value={`${Math.round(snapshot.ai.estimateQuality.onEstimateRatePercent)}%`}
+          hint={`${snapshot.ai.estimateQuality.estimateMaeHours.toFixed(1)}h MAE`}
+          tone={
+            snapshot.ai.estimateQuality.qualityStatus === "STRONG"
+              ? "success"
+              : snapshot.ai.estimateQuality.qualityStatus === "WATCH"
+                ? "info"
+                : "warning"
+          }
         />
       </div>
 
-      {permissions.canViewExecutiveAnalytics && (
-        <ProjectProductivityMetrics
-          report={report}
-          productivity={productivity}
-          workload={workload}
-        />
-      )}
-
-      <div className="grid gap-4 2xl:grid-cols-[0.95fr_1.45fr]">
-        <StatusDonutChart
-          title="Project-wide task status"
-          description="Completed, active, overdue, and stale work across the full project."
-          data={deliveryBreakdown}
-        />
-        {permissions.canViewExecutiveAnalytics && (
-          <TeamPerformanceChart
-            title="Selected team load"
-            description="Committed sprint points against available capacity for the members currently in view."
-            data={performanceData}
-            plannedLabel="Capacity"
-            actualLabel="Committed"
-          />
-        )}
-      </div>
-
-      <div className="grid gap-4 2xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <DeliveryTrendChart data={snapshot.trends.delivery} />
         <Card className="border-border/60 bg-card/95 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-base">Project-wide blocker signals</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Each anomaly comes from the backend project AI pass, without a
-                forced one-to-one pairing to the recommendation list.
-              </p>
-            </div>
-            <Badge variant="outline" className="pm-tone-info">
-              {issueRows.length} signals
-            </Badge>
+          <CardHeader>
+            <CardTitle className="text-base">Delivery snapshot</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Project-wide distribution of completed, open, overdue, and blocked work.
+            </p>
           </CardHeader>
           <CardContent>
-            {issueRows.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Issue</TableHead>
-                    <TableHead>Signal</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Suggested next step</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {issueRows.map((row) => (
-                    <TableRow key={row.key}>
-                      <TableCell className="max-w-[260px] whitespace-normal">
-                        <p className="font-medium">{row.issue}</p>
-                      </TableCell>
-                      <TableCell className="uppercase text-muted-foreground">
-                        {row.source}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={getSeverityClass(row.severity)}
-                        >
-                          {row.severity}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[320px] whitespace-normal text-muted-foreground">
-                        {row.guidance}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            {deliveryDistribution.length ? (
+              <ChartContainer
+                className="h-[280px] w-full"
+                config={Object.fromEntries(
+                  deliveryDistribution.map((item) => [
+                    item.key,
+                    { label: item.label, color: item.color },
+                  ]),
+                )}
+              >
+                <BarChart data={deliveryDistribution}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="label" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} allowDecimals={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                    {deliveryDistribution.map((item) => (
+                      <Cell key={item.key} fill={item.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
             ) : (
               <EmptyState
-                icon={AlertTriangle}
-                message="No blockers detected"
-                description="The current AI anomaly run did not flag any blocker signals."
+                icon={BarChart3}
+                message="No delivery distribution yet"
+                description="This project needs tracked task activity before the delivery split becomes useful."
               />
             )}
           </CardContent>
         </Card>
+      </div>
 
+      <div className="grid gap-4 xl:grid-cols-[0.98fr_1.02fr]">
         <div className="space-y-4">
-          {permissions.canViewExecutiveAnalytics && (
-            <ProjectCapacityView
-              capacity={{
-                ...capacity,
-                members: filteredCapacityMembers,
-              }}
-            />
-          )}
+          <MemberLoadChart data={memberLoadChartData} />
 
-          {permissions.canViewAiInsights && (
-            <div className="rounded-2xl border border-border/60 bg-card/95 p-5 shadow-sm">
-              <div className="mb-4 flex items-center gap-2">
-                <Sparkles className="size-4 text-primary" />
-                <h3 className="text-base font-semibold">AI recommendations</h3>
-              </div>
-
-            {aiInsights.recommendations.length > 0 ? (
-              <div className="space-y-3">
-                {aiInsights.recommendations.map((recommendation, index) => (
+          <Card className="border-border/60 bg-card/95 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">Team capacity ranking</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Highest-pressure teammates first so you can see who needs help next.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {snapshot.capacity.rankedMembers.length ? (
+                snapshot.capacity.rankedMembers.map((member) => (
                   <div
-                    key={`${recommendation}-${index}`}
-                    className="rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground"
+                    key={member.userId}
+                    className="rounded-2xl border border-border/60 bg-background/75 p-4"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full pm-tone-info">
-                        <Sparkles className="size-3.5" />
-                      </div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-foreground">
-                          Recommendation {index + 1}
+                        <p className="font-medium">{member.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {member.openTasks} open | {member.overdueTasks} overdue |{" "}
+                          {member.assignedTasks} assigned
                         </p>
-                        <p className="mt-1">{recommendation}</p>
+                      </div>
+                      <Badge variant="outline" className={memberLoadTone(member.loadStatus)}>
+                        {member.loadStatus.replace("_", " ")}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl bg-muted/20 px-3 py-2 text-sm">
+                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                          Utilization
+                        </p>
+                        <p className="mt-1 font-semibold">
+                          {Math.round(member.utilizationPercent)}%
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-muted/20 px-3 py-2 text-sm">
+                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                          Load
+                        </p>
+                        <p className="mt-1 font-semibold">
+                          {member.committedPoints}/{member.capacityPoints} pts
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-muted/20 px-3 py-2 text-sm">
+                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                          Share
+                        </p>
+                        <p className="mt-1 font-semibold">
+                          {Math.round(member.workloadSharePercent)}%
+                        </p>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={AlertTriangle}
-                message="No AI recommendations right now"
-                description="The latest backend insight run did not return additional actions."
-              />
-            )}
-          </div>
-          )}
+                ))
+              ) : (
+                <EmptyState
+                  icon={Users}
+                  message="No member load data yet"
+                  description="Once tasks and sprint commitments are assigned, the ranked capacity lane will appear here."
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card className="border-border/60 bg-card/95 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">AI Copilot actions</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Decision-focused AI interventions instead of raw technical anomaly text.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {topActions.length ? (
+                topActions.map((action) => (
+                  <div
+                    key={action.code}
+                    className="rounded-2xl border border-border/60 bg-background/80 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="font-medium">{action.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {action.message}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={severityClass(action.severity)}>
+                        {action.severity}
+                      </Badge>
+                    </div>
+                    <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-xl bg-muted/20 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                          Why now
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">{action.why}</p>
+                      </div>
+                      <div className="rounded-xl bg-muted/20 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                          Recommended action
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {action.recommendedAction}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <EmptyState
+                  icon={BrainCircuit}
+                  message="No AI actions yet"
+                  description="The latest planning snapshot did not return any recommended intervention."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 bg-card/95 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">AI anomaly lane</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Raw signals are still available, but they are now easier to interpret and act on.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {topAnomalies.length ? (
+                topAnomalies.map((anomaly, index) => (
+                  <div
+                    key={`${anomaly.code}-${index}`}
+                    className="rounded-2xl border border-border/60 bg-background/80 p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {anomaly.title ?? anomaly.code.replaceAll("_", " ")}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {anomaly.message}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={severityClass(anomaly.severity)}>
+                        {anomaly.severity}
+                      </Badge>
+                    </div>
+                    {anomaly.recommendedAction ? (
+                      <div className="mt-3 rounded-xl bg-muted/20 px-3 py-2">
+                        <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                          Suggested next step
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {anomaly.recommendedAction}
+                        </p>
+                      </div>
+                    ) : null}
+                  </div>
+                ))
+              ) : (
+                <EmptyState
+                  icon={AlertTriangle}
+                  message="No anomaly signals"
+                  description="The latest AI anomaly scan did not detect blockers or delivery pressure."
+                />
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

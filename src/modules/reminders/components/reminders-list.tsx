@@ -119,7 +119,7 @@ export default function RemindersList({
 
   return (
     <Card className="border-border/70 bg-card/95 shadow-sm">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <PageHeaderStrip
           className="border-0 bg-transparent p-0 lg:flex-row"
           icon={Bell}
@@ -150,8 +150,8 @@ export default function RemindersList({
           ]}
         />
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardContent className="space-y-3">
+        <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/20 p-3 sm:flex-row sm:items-center sm:justify-between">
           <Tabs
             value={status ?? "ALL"}
             onValueChange={(value) => {
@@ -175,7 +175,7 @@ export default function RemindersList({
         </div>
 
         {query.isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-28 w-full" />
             ))}

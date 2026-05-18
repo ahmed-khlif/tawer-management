@@ -1,5 +1,6 @@
 import { castRoleFromBackendToFrontend } from "@/modules/auth/utils/user-roles";
 import { UserInResponseType, UserType } from "@/modules/users/types/users";
+import { normalizeOptionalPhone } from "../../normalize-optional-phone";
 
 export function castToUserType(userInResponse: UserInResponseType): UserType {
   return {
@@ -15,7 +16,7 @@ export function castToUserType(userInResponse: UserInResponseType): UserType {
       : [],
     isOnline: userInResponse.online ? true : false,
     roles: userInResponse.roles.map((role) => castRoleFromBackendToFrontend(role)), //userInResponse.roles.map((role) => castRoleFromBackendToFrontend(role)),
-    phone: userInResponse.phone,
+    phone: normalizeOptionalPhone(userInResponse.phone),
 
     notificationsSettings: {
       emailNotifications: userInResponse.notificationSettings ? userInResponse.notificationSettings.emailNotificationsEnabled : false,

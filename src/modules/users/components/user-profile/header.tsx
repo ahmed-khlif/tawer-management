@@ -12,6 +12,7 @@ import {
   Eye,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import type { UserType } from "../../types/users";
@@ -33,6 +34,59 @@ import {
 } from "@/modules/projects/utils/badges/user-role-badges";
 import useWorkSession from "@/modules/tracking/hook/work-sessions/use-work-session";
 import { useViewerModeStore } from "@/modules/tracking/store/viewer-mode-store";
+import { getProfileCompletionSummary } from "../../utils/profile-completion";
+
+/** Animated SVG ring showing profile completion percentage */
+function CompletionRingAvatar({
+  percentage,
+  size,
+  radius,
+  circumference,
+  strokeWidth,
+}: {
+  percentage: number;
+  size: number;
+  radius: number;
+  circumference: number;
+  strokeWidth: number;
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const offset = mounted
+    ? circumference - (Math.max(0, Math.min(100, percentage)) / 100) * circumference
+    : circumference;
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      className="rotate-[-90deg] drop-shadow-sm"
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        className="text-border/40"
+        strokeWidth={strokeWidth}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        className="text-primary transition-all duration-1000 ease-out"
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
 
 interface Props {
   user: UserType;
@@ -65,6 +119,7 @@ export function ProfileHeader({
   });
   const showViewerModeBadge =
     isMyProfile && viewerModeIsActive && !workSessionIsLoading;
+  const completion = getProfileCompletionSummary(user);
   const effectiveIsCheckedIn = isMyProfile
     ? workSessionIsLoading
       ? user.isOnline
@@ -132,10 +187,28 @@ export function ProfileHeader({
 
       <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
         <div className="relative -mt-12 flex flex-col items-center gap-6 md:-mt-16 md:flex-row md:items-end">
-          <Avatar className="border-background h-24 w-24 border-4 shadow-xl md:h-32 md:w-32">
-            <AvatarImage src={user.image || "/placeholder.svg"} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-          </Avatar>
+          {/* Avatar with Animated Completion Ring */}
+          <div className="relative inline-flex h-[152px] w-[152px] shrink-0 items-center justify-center">
+            {(() => {
+              const size = 152;
+              const strokeWidth = 5;
+              const radius = (size - strokeWidth) / 2;
+              const circumference = 2 * Math.PI * radius;
+              return (
+                <CompletionRingAvatar
+                  percentage={completion.percentage}
+                  size={size}
+                  radius={radius}
+                  circumference={circumference}
+                  strokeWidth={strokeWidth}
+                />
+              );
+            })()}
+            <Avatar className="border-background absolute h-28 w-28 border-4 shadow-xl md:h-32 md:w-32">
+              <AvatarImage src={user.image || "/placeholder.svg"} />
+              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+          </div>
 
           <div className="flex-1 space-y-3 text-center md:text-left">
             <div className="space-y-1">
@@ -169,6 +242,7 @@ export function ProfileHeader({
                     {user.teams.length} team{user.teams.length > 1 ? "s" : ""}
                   </Badge>
                 ) : null}
+
               </div>
               <h1 className="text-foreground text-2xl font-bold tracking-tight md:text-3xl">
                 {user.name}

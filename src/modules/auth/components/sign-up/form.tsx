@@ -40,8 +40,8 @@ const STEP_FIELDS: Record<
   StepKey,
   ("name" | "image" | "email" | "phone" | "password")[]
 > = {
-  account: ["name", "image"],
-  contact: ["email", "phone"],
+  account: ["name"],
+  contact: ["email"],
   security: ["password"],
 };
 
@@ -80,7 +80,7 @@ export default function SignUpForm({
         key: "account",
         title: t("steps.account.title", { defaultValue: "Account" }),
         description: t("steps.account.description", {
-          defaultValue: "Your name & avatar",
+          defaultValue: "Start with your name",
         }),
         icon: User,
       },
@@ -89,7 +89,7 @@ export default function SignUpForm({
         key: "contact",
         title: t("steps.contact.title", { defaultValue: "Contact" }),
         description: t("steps.contact.description", {
-          defaultValue: "Email & phone",
+          defaultValue: "Email now, phone later",
         }),
         icon: Mail,
       },
@@ -180,7 +180,7 @@ export default function SignUpForm({
                 <p className="mt-2 text-xs text-muted-foreground">
                   {t("steps.account.imageHint", {
                     defaultValue:
-                      "JPG, PNG or WEBP. Used as your profile avatar.",
+                      "Optional. JPG, PNG or WEBP. You can add a profile photo later from your profile settings.",
                   })}
                 </p>
               </div>
@@ -254,9 +254,14 @@ export default function SignUpForm({
                 name="phone"
                 render={({ field }) => (
                   <FormItem className="space-y-1.5">
-                    <Label htmlFor="phone" className="text-sm font-medium">
+                    <div className="flex items-center justify-between gap-3">
+                      <Label htmlFor="phone" className="text-sm font-medium">
                       {t("fields.phone.label")}
-                    </Label>
+                      </Label>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Optional
+                      </span>
+                    </div>
                     <FormControl>
                       <div className="relative">
                         <Input
@@ -273,6 +278,9 @@ export default function SignUpForm({
                         />
                       </div>
                     </FormControl>
+                    <p className="text-xs text-muted-foreground">
+                      Add your phone later from your profile if you want a more complete teammate card.
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

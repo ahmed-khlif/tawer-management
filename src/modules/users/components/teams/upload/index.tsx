@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { UsersRound, UserPlus } from "lucide-react";
 
 import {
   Dialog,
@@ -14,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import TeamUploadForm from "./form";
-import { UserPlus } from "lucide-react";
 import { TeamType } from "@/modules/users/types/teams";
 
 interface Props {
@@ -60,11 +60,18 @@ export default function UploadTeamDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-xl border-border/70 bg-card/98">
         <ScrollArea className="max-h-[80vh] pr-3 rtl:pr-0 rtl:pl-3">
-          <DialogHeader>
-            <DialogTitle>{t("title")}</DialogTitle>
-            <DialogDescription>{t("description")}</DialogDescription>
+          <DialogHeader className="rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] via-background to-transparent p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-sm ring-1 ring-primary/10">
+                <UsersRound className="size-5" />
+              </div>
+              <div className="space-y-1">
+                <DialogTitle>{t("title")}</DialogTitle>
+                <DialogDescription>{t("description")}</DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
           <div className="pt-5">
             <TeamUploadForm onFinish={closePopUp} team={team} />

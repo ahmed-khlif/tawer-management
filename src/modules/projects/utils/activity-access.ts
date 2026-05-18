@@ -8,3 +8,9 @@ export function canViewProjectActivity(
     ? hasPermissions(roles, "projectsManagement", "view")
     : false;
 }
+
+export function canExportProjectActivity(
+  roles: UserRoleOnFrontendSide[] | null | undefined,
+): boolean {
+  return canViewProjectActivity(roles);
+}

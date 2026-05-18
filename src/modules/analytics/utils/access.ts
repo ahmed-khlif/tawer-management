@@ -31,6 +31,12 @@ export function canSeeProjectExecutivePanels(
   return canViewExecutiveOverview(userRoles);
 }
 
+export function canExportExecutiveAnalytics(
+  userRoles: Iterable<unknown> | null | undefined,
+): boolean {
+  return canViewExecutiveOverview(userRoles);
+}
+
 export function resolveEmployeeAnalyticsAccess({
   currentUser,
   targetUserId,
@@ -71,4 +77,10 @@ export function resolveEmployeeAnalyticsAccess({
     backHref: "/dashboard/projects",
     backLabel: "Back to projects",
   };
+}
+
+export function canExportEmployeeAnalytics(
+  access: EmployeeAnalyticsAccessResult,
+): boolean {
+  return access.canLoad;
 }

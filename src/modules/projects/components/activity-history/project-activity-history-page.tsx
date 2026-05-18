@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import type { DateRange } from "react-day-picker";
@@ -11,6 +11,9 @@ import {
   Bell,
   CalendarDays,
   CheckCircle2,
+  Download,
+  FileDown,
+  FileSpreadsheet,
   Filter,
   FolderKanban,
   Layers3,
@@ -29,6 +32,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ExportMenuButton } from "@/components/export-menu-button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -47,18 +51,21 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { exportReportToPdfPrintWindow, exportRowsToCsv } from "@/lib/report-export";
 import AccessDenied from "@/components/error/access-denied";
 import { MetricCard } from "@/modules/projects/components/shared/metric-card";
 import { useProjectActivity } from "@/modules/projects/hooks/activity/use-project-activity";
-import { retrieveProjects } from "@/modules/projects/services";
+import { retrieveAllProjects } from "@/modules/projects/services";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
-import { canViewProjectActivity } from "@/modules/projects/utils/activity-access";
+import { canExportProjectActivity, canViewProjectActivity } from "@/modules/projects/utils/activity-access";
 import {
   PROJECT_ACTIVITY_TYPES,
   type ProjectActivityFilters,
   type ProjectActivityItem,
   type ProjectActivityType,
 } from "@/modules/projects/types/project-activity";
+import { fetchAllProjectActivity } from "@/modules/projects/services/api/project-activity";
+import { API } from "@/lib/api-endpoints";
 
 const TYPE_OPTIONS: Array<{ value: ProjectActivityType; label: string }> = [
   { value: PROJECT_ACTIVITY_TYPES.TASK_CREATED, label: "Task created" },
@@ -83,7 +90,7 @@ const TYPE_OPTIONS: Array<{ value: ProjectActivityType; label: string }> = [
 ];
 
 function getInitials(name?: string | null) {
-  if (!name) return "?";
+  if (!name) return "-";
   return (
     name
       .trim()
@@ -91,13 +98,13 @@ function getInitials(name?: string | null) {
       .slice(0, 2)
       .map((part) => part[0] ?? "")
       .join("")
-      .toUpperCase() || "?"
+      .toUpperCase() || "-"
   );
 }
 
 function getDayLabel(date: Date) {
-  if (isToday(date)) return `Today • ${format(date, "MMM d")}`;
-  if (isYesterday(date)) return `Yesterday • ${format(date, "MMM d")}`;
+  if (isToday(date)) return `Today - ${format(date, "MMM d")}`;
+  if (isYesterday(date)) return `Yesterday - ${format(date, "MMM d")}`;
   return format(date, "EEEE, MMM d");
 }
 
@@ -170,6 +177,33 @@ function getActivityMeta(activity: ProjectActivityItem) {
         border: "border-primary/20",
       };
   }
+}
+
+function getActivitySummary(activity: ProjectActivityItem) {
+  const actorName = activity.actor.name?.trim();
+  const normalized = activity.summary.replace(/^(undefined|null)\b\s*/i, "").trim();
+
+  if (!actorName) {
+    return normalized || activity.summary;
+  }
+
+  const escapedActor = actorName.replace(/[.*+-^${}()|[\]\\]/g, "\\$&");
+  return normalized.replace(new RegExp(`^${escapedActor}\\s*`, "i"), "").trim();
+}
+
+function resolveActivityActorImage(image?: string | null) {
+  if (!image) return undefined;
+  if (/^(https?:)?\/\//i.test(image) || image.startsWith("data:")) {
+    return image;
+  }
+  if (image.startsWith("/static/")) {
+    return `${API.BASE_URL}${image}`;
+  }
+  if (image.startsWith("/")) {
+    return `${API.BASE_URL}${image}`;
+  }
+
+  return `${API.BASE_URL}/static/images/users/${image}`;
 }
 
 function buildActivityHref(activity: ProjectActivityItem) {
@@ -319,6 +353,7 @@ export default function ProjectActivityHistoryPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useCurrentUser();
+  const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
 
   const page = Number(searchParams.get("page") || "1");
   const search = searchParams.get("search") || "";
@@ -340,10 +375,12 @@ export default function ProjectActivityHistoryPage() {
   };
 
   const canView = canViewProjectActivity(user?.roles);
+  const canExport = canExportProjectActivity(user?.roles);
   const activityQuery = useProjectActivity(filters, canView);
   const projectsQuery = useQuery({
     queryKey: ["activity-filter-projects"],
-    queryFn: async () => retrieveProjects({ page: 1, limit: 100, sortBy: "createdAtDesc" }),
+    queryFn: async () =>
+      retrieveAllProjects({ sortBy: "createdAtDesc", isArchived: false }),
     enabled: canView,
   });
 
@@ -396,7 +433,7 @@ export default function ProjectActivityHistoryPage() {
     }));
   }, [activityQuery.data]);
 
-  const projectOptions = (projectsQuery.data?.data ?? []).map((project) => ({
+  const projectOptions = (projectsQuery.data ?? []).map((project) => ({
     id: project.id,
     name: project.name || project.contents?.[0]?.name || "Unnamed Project",
   }));
@@ -405,6 +442,78 @@ export default function ProjectActivityHistoryPage() {
     search || projectId || actorName || type || startDate || endDate,
   );
   const hasError = activityQuery.isError || projectsQuery.isError;
+
+  const exportRows = async () => {
+    return fetchAllProjectActivity({
+      ...filters,
+      page: 1,
+      limit: 100,
+    });
+  };
+
+  const handleExportCsv = async () => {
+    if (!canExport) return;
+    setExporting("csv");
+    try {
+      const rows = await exportRows();
+      exportRowsToCsv(
+        `activity-history-${new Date().toISOString().slice(0, 10)}.csv`,
+        [
+          { key: "occurredAt", label: "Occurred At" },
+          { key: "actor", label: "Actor" },
+          { key: "project", label: "Project" },
+          { key: "type", label: "Type" },
+          { key: "target", label: "Target" },
+          { key: "summary", label: "Summary" },
+          { key: "time", label: "Time" },
+        ],
+        rows.map((activity) => ({
+          occurredAt: format(activity.occurredAt, "yyyy-MM-dd HH:mm"),
+          actor: activity.actor.name ?? "System",
+          project: activity.project.name,
+          type: TYPE_OPTIONS.find((option) => option.value === activity.type)?.label ?? activity.type,
+          target: activity.targetLabel,
+          summary: `${activity.actor.name ?? "System"} ${getActivitySummary(activity)}`.trim(),
+          time: format(activity.occurredAt, "p"),
+        })),
+      );
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!canExport) return;
+    setExporting("pdf");
+    try {
+      const rows = await exportRows();
+      exportReportToPdfPrintWindow({
+        filename: `activity-history-${new Date().toISOString().slice(0, 10)}.pdf`,
+        title: "Activity History",
+        subtitle:
+          "Filtered project-management activity across the projects visible to the current user.",
+        sections: rows.slice(0, 80).map((activity) => ({
+          title: `${format(activity.occurredAt, "PPP p")} - ${activity.targetLabel}`,
+          rows: [
+            { label: "Actor", value: activity.actor.name ?? "System" },
+            { label: "Project", value: activity.project.name },
+            {
+              label: "Type",
+              value:
+                TYPE_OPTIONS.find((option) => option.value === activity.type)?.label ??
+                activity.type,
+            },
+            {
+              label: "Summary",
+              value: `${activity.actor.name ?? "System"} ${getActivitySummary(activity)}`.trim(),
+            },
+          ],
+        })),
+      });
+    } finally {
+      setExporting(null);
+    }
+  };
 
   if (!canView) {
     return <AccessDenied />;
@@ -457,9 +566,20 @@ export default function ProjectActivityHistoryPage() {
               </Button>
             ) : null}
 
-            <Button variant="outline" disabled>
-              Export Log
-            </Button>
+            {canExport ? (
+              <ExportMenuButton
+                exporting={exporting}
+                onExportCsv={() => void handleExportCsv()}
+                onExportPdf={() => void handleExportPdf()}
+                label="Export Log"
+                menuClassName="w-48"
+              />
+            ) : (
+              <Button variant="outline" disabled>
+                <Download className="mr-2 h-4 w-4" />
+                Export restricted
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -581,7 +701,9 @@ export default function ProjectActivityHistoryPage() {
                               <div className="flex items-start gap-4">
                                 <div className="relative">
                                   <Avatar className="h-12 w-12 border">
-                                    <AvatarImage src={activity.actor.image ?? undefined} />
+                                    <AvatarImage
+                                      src={resolveActivityActorImage(activity.actor.image)}
+                                    />
                                     <AvatarFallback>{getInitials(activity.actor.name)}</AvatarFallback>
                                   </Avatar>
                                   <div
@@ -598,10 +720,11 @@ export default function ProjectActivityHistoryPage() {
                                 <div className="min-w-0 flex-1 space-y-2">
                                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                                     <div className="space-y-1">
-                                      <div className="font-medium leading-6 text-foreground">{activity.summary}</div>
+                                      <div className="font-medium leading-6 text-foreground">
+                                        <span className="font-semibold">{activity.actor.name ?? "System"}</span>{" "}
+                                        {getActivitySummary(activity)}
+                                      </div>
                                       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                                        <span>{activity.actor.name ?? "System"}</span>
-                                        <span>•</span>
                                         <span>{activity.project.name}</span>
                                         <span>•</span>
                                         <span>{format(activity.occurredAt, "p")}</span>
@@ -667,3 +790,4 @@ export default function ProjectActivityHistoryPage() {
     </div>
   );
 }
+

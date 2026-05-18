@@ -50,13 +50,13 @@ export interface MetricCardProps {
 }
 
 const TONE_TILE: Record<MetricTone, string> = {
-  default: "bg-muted text-muted-foreground",
-  primary: "bg-primary/10 text-primary",
-  running: "pm-tone-running",
-  info: "pm-tone-info",
-  success: "pm-tone-success",
-  warning: "pm-tone-warning",
-  destructive: "bg-destructive/10 text-destructive",
+  default: "bg-muted/80 text-muted-foreground ring-1 ring-border/70",
+  primary: "bg-primary/10 text-primary ring-1 ring-primary/10",
+  running: "pm-tone-running ring-1 ring-[color:var(--pm-tone-running-border)]/35",
+  info: "pm-tone-info ring-1 ring-[color:var(--pm-tone-info-border)]/35",
+  success: "pm-tone-success ring-1 ring-[color:var(--pm-tone-success-border)]/35",
+  warning: "pm-tone-warning ring-1 ring-[color:var(--pm-tone-warning-border)]/35",
+  destructive: "bg-destructive/10 text-destructive ring-1 ring-destructive/15",
 };
 
 const TONE_VALUE: Record<MetricTone, string> = {
@@ -80,13 +80,33 @@ const TONE_ACCENT: Record<MetricTone, string> = {
 };
 
 const TONE_GLOW: Record<MetricTone, string> = {
-  default: "",
+  default: "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
   primary: "shadow-[0_0_0_1px_hsl(var(--primary)/0.08)]",
-  running: "",
-  info: "",
-  success: "",
-  warning: "",
+  running: "shadow-[0_0_0_1px_color-mix(in_srgb,var(--pm-tone-running-border)_18%,transparent)]",
+  info: "shadow-[0_0_0_1px_color-mix(in_srgb,var(--pm-tone-info-border)_18%,transparent)]",
+  success: "shadow-[0_0_0_1px_color-mix(in_srgb,var(--pm-tone-success-border)_18%,transparent)]",
+  warning: "shadow-[0_0_0_1px_color-mix(in_srgb,var(--pm-tone-warning-border)_18%,transparent)]",
   destructive: "shadow-[0_0_0_1px_hsl(var(--destructive)/0.1)]",
+};
+
+const TONE_SURFACE: Record<MetricTone, string> = {
+  default: "from-card via-card to-muted/[0.18]",
+  primary: "from-card via-card to-primary/[0.06]",
+  running: "from-card via-card to-[color:var(--pm-tone-running-bg)]/55",
+  info: "from-card via-card to-[color:var(--pm-tone-info-bg)]/55",
+  success: "from-card via-card to-[color:var(--pm-tone-success-bg)]/55",
+  warning: "from-card via-card to-[color:var(--pm-tone-warning-bg)]/55",
+  destructive: "from-card via-card to-destructive/[0.05]",
+};
+
+const TONE_PROGRESS: Record<MetricTone, string> = {
+  default: "[&>div]:bg-foreground/70",
+  primary: "[&>div]:bg-primary",
+  running: "[&>div]:bg-[color:var(--pm-tone-running-fg)]",
+  info: "[&>div]:bg-[color:var(--pm-tone-info-fg)]",
+  success: "[&>div]:bg-[color:var(--pm-tone-success-fg)]",
+  warning: "[&>div]:bg-[color:var(--pm-tone-warning-fg)]",
+  destructive: "[&>div]:bg-destructive",
 };
 
 function TrendBadge({ trend, tone }: { trend: NonNullable<MetricCardProps["trend"]>; tone: MetricTone }) {
@@ -145,29 +165,29 @@ export function MetricCard({
           {Icon ? (
             <span
               className={cn(
-                "inline-flex shrink-0 items-center justify-center rounded-md",
-                isCompact ? "size-7" : "size-8",
+                "inline-flex shrink-0 items-center justify-center rounded-xl shadow-sm",
+                isCompact ? "size-8" : "size-9",
                 TONE_TILE[tone],
               )}
             >
               <Icon className={isCompact ? "size-3.5" : "size-4"} />
             </span>
           ) : null}
-          <span className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="truncate text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {label}
           </span>
         </div>
         {trend && !loading ? <TrendBadge trend={trend} tone={tone} /> : null}
       </div>
 
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         {loading ? (
           <Skeleton className={cn("h-7 w-24", isCompact && "h-6 w-20")} />
         ) : (
           <span
             className={cn(
-              "block truncate font-semibold leading-tight",
-              isCompact ? "text-lg" : "text-2xl",
+              "block truncate font-semibold leading-none tracking-tight",
+              isCompact ? "text-xl" : "text-[1.8rem]",
               emphasize ? TONE_VALUE[tone] : "text-foreground",
             )}
           >
@@ -175,16 +195,28 @@ export function MetricCard({
           </span>
         )}
         {hint && !loading ? (
-          <span className="block truncate text-xs text-muted-foreground">{hint}</span>
+          <span className="block truncate text-xs leading-relaxed text-muted-foreground/95">
+            {hint}
+          </span>
         ) : null}
         {hint && loading ? <Skeleton className="h-3 w-20" /> : null}
       </div>
 
       {typeof progress === "number" && !loading ? (
-        <Progress
-          value={Math.max(0, Math.min(100, progress))}
-          className={isCompact ? "h-1" : "h-1.5"}
-        />
+        <div className="space-y-1.5 pt-0.5">
+          <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <span>Progress</span>
+            <span>{Math.round(Math.max(0, Math.min(100, progress)))}%</span>
+          </div>
+          <Progress
+            value={Math.max(0, Math.min(100, progress))}
+            className={cn(
+              isCompact ? "h-1.5" : "h-2",
+              "bg-muted/80",
+              TONE_PROGRESS[tone],
+            )}
+          />
+        </div>
       ) : null}
     </>
   );
@@ -208,13 +240,14 @@ export function MetricCard({
         ariaLabel ?? (typeof label === "string" ? label : undefined)
       }
       className={cn(
-        "group relative flex flex-col gap-2 overflow-hidden border bg-card transition-shadow",
+        "group relative flex flex-col gap-3 overflow-hidden border bg-gradient-to-br transition-all duration-200",
         isCompact ? "p-3" : "p-4",
+        TONE_SURFACE[tone],
         TONE_GLOW[tone],
         // left accent bar
-        "before:absolute before:left-0 before:top-3 before:bottom-3 before:w-0.5 before:rounded-r",
+        "before:absolute before:left-0 before:top-3 before:bottom-3 before:w-0.5 before:rounded-r after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-px after:bg-white/40 dark:after:bg-white/5",
         TONE_ACCENT[tone],
-        interactive && "cursor-pointer hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        interactive && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
         className,
       )}
     >

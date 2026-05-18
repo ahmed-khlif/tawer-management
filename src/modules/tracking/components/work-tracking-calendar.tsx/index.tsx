@@ -65,7 +65,7 @@ export default function WorkedDaysTracking({
       </div>
 
       {
-        isLoading ? <Card className="border-border/50">
+        isLoading ? <Card className="border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75">
           <CardContent className="text-muted-foreground flex items-center justify-center p-16">
             <div className="flex flex-col items-center gap-6">
               <div className="relative inline-flex h-12 w-12">
@@ -82,10 +82,10 @@ export default function WorkedDaysTracking({
               </div>
             </div>
           </CardContent>
-        </Card> : isError || workedDays?.length === 0 ? <Card className="border-border/50">
+        </Card> : isError || workedDays?.length === 0 ? <Card className="border-border/50 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/75">
           <CardContent className="text-muted-foreground flex items-center justify-center p-16">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="bg-muted/60 rounded-full p-4">
+              <div className="bg-muted/60 rounded-full p-4 ring-1 ring-border/50">
                 <Calendar className="text-muted-foreground/70 size-8" />
               </div>
               <div>

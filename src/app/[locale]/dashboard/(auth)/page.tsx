@@ -4,20 +4,26 @@ import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  Check,
   Bell,
   Briefcase,
   Calendar,
   CheckCircle2,
+  CircleDot,
+  GitCommitHorizontal,
   FolderKanban,
+  MessageSquare,
+  Milestone,
   Sparkles,
   Star,
   TimerReset,
+  UserPlus,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 import Loading from "@/components/page-loader";
 import { Button } from "@/components/ui/button";
@@ -38,6 +44,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { API } from "@/lib/api-endpoints";
 
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import {
@@ -45,9 +52,12 @@ import {
   useEmployeeProductivityMetrics,
   useExecutiveAnalyticsOverview,
 } from "@/modules/analytics/hooks/use-analytics";
-import ReminderCard from "@/modules/reminders/components/reminder-card";
-import { useMyReminders } from "@/modules/reminders/hooks/use-reminders";
+import { useProjectActivity } from "@/modules/projects/hooks/activity/use-project-activity";
 import { retrieveProjects } from "@/modules/projects/services";
+import {
+  PROJECT_ACTIVITY_TYPES,
+  type ProjectActivityItem,
+} from "@/modules/projects/types/project-activity";
 import {
   projectStatusClasses,
   projectTypeClasses,
@@ -56,6 +66,7 @@ import {
   businessUnitNamed,
 } from "@/modules/projects/utils/badges/project-badges";
 import type { ProjectType } from "@/modules/projects/types/projects";
+import { canViewProjectActivity } from "@/modules/projects/utils/activity-access";
 import { shouldShowOnboarding } from "@/modules/projects/utils/onboarding-state";
 
 // ─── Time progress helpers ────────────────────────────────────────────────────
@@ -134,7 +145,7 @@ function CircularProgress({
   );
 }
 
-function getInitials(name?: string): string {
+function getInitials(name?: string | null): string {
   if (!name) return "?";
   return (
     name
@@ -149,6 +160,81 @@ function getInitials(name?: string): string {
 
 function getMemberInitials(memberName?: string, userName?: string): string {
   return getInitials(memberName || userName || "?");
+}
+
+function getWelcomeActivityMeta(activity: ProjectActivityItem) {
+  switch (activity.type) {
+    case PROJECT_ACTIVITY_TYPES.TASK_COMMENT_ADDED:
+    case PROJECT_ACTIVITY_TYPES.TASK_COMMENT_LIKED:
+      return {
+        icon: MessageSquare,
+        dotClass:
+          "border-sky-200 bg-sky-50 text-sky-600 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-300",
+      };
+    case PROJECT_ACTIVITY_TYPES.TASK_STATUS_CHANGED:
+    case PROJECT_ACTIVITY_TYPES.MILESTONE_COMPLETED:
+      return {
+        icon: Check,
+        dotClass:
+          "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300",
+      };
+    case PROJECT_ACTIVITY_TYPES.MILESTONE_CREATED:
+    case PROJECT_ACTIVITY_TYPES.MILESTONE_UPDATED:
+    case PROJECT_ACTIVITY_TYPES.SPRINT_CREATED:
+    case PROJECT_ACTIVITY_TYPES.SPRINT_UPDATED:
+      return {
+        icon: Milestone,
+        dotClass:
+          "border-violet-200 bg-violet-50 text-violet-600 dark:border-violet-900/40 dark:bg-violet-950/30 dark:text-violet-300",
+      };
+    case PROJECT_ACTIVITY_TYPES.PROJECT_MEMBER_ADDED:
+    case PROJECT_ACTIVITY_TYPES.PROJECT_MEMBER_REMOVED:
+    case PROJECT_ACTIVITY_TYPES.PROJECT_INVITATION_CREATED:
+    case PROJECT_ACTIVITY_TYPES.PROJECT_INVITATION_ACCEPTED:
+      return {
+        icon: UserPlus,
+        dotClass:
+          "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-600 dark:border-fuchsia-900/40 dark:bg-fuchsia-950/30 dark:text-fuchsia-300",
+      };
+    case PROJECT_ACTIVITY_TYPES.TASK_UPDATED:
+      return {
+        icon: GitCommitHorizontal,
+        dotClass: "border-primary/20 bg-primary/10 text-primary",
+      };
+    default:
+      return {
+        icon: CircleDot,
+        dotClass:
+          "border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300",
+      };
+  }
+}
+
+function getWelcomeActivitySummary(activity: ProjectActivityItem) {
+  const actorName = activity.actor.name?.trim();
+  const normalized = activity.summary.replace(/^(undefined|null)\b\s*/i, "").trim();
+
+  if (!actorName) {
+    return normalized || activity.summary;
+  }
+
+  const escapedActor = actorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return normalized.replace(new RegExp(`^${escapedActor}\\s*`, "i"), "").trim();
+}
+
+function resolveActivityActorImage(image?: string | null) {
+  if (!image) return undefined;
+  if (/^(https?:)?\/\//i.test(image) || image.startsWith("data:")) {
+    return image;
+  }
+  if (image.startsWith("/static/")) {
+    return `${API.BASE_URL}${image}`;
+  }
+  if (image.startsWith("/")) {
+    return `${API.BASE_URL}${image}`;
+  }
+
+  return `${API.BASE_URL}/static/images/users/${image}`;
 }
 
 // ─── Recent project list item ────────────────────────────────────────────────
@@ -390,15 +476,17 @@ export default function DashboardHomePage() {
   const isExecutive = user?.roles.some((role) =>
     ["ceo", "cto", "cmo"].includes(String(role)),
   );
+  const canViewActivity = canViewProjectActivity(user?.roles);
   const overviewQuery = useExecutiveAnalyticsOverview(isExecutive);
   const employeeSummaryQuery = useEmployeeAnalyticsSummary(user?.id);
   const employeeProductivityQuery = useEmployeeProductivityMetrics(user?.id);
-  const remindersQuery = useMyReminders({
-    status: "PENDING",
-    page: 1,
-    limit: 5,
-    sortBy: "reminderAtAsc",
-  });
+  const activityQuery = useProjectActivity(
+    {
+      page: 1,
+      limit: 5,
+    },
+    canViewActivity,
+  );
   const projectsQuery = useQuery({
     queryKey: ["dashboard-recent-projects"],
     queryFn: () =>
@@ -409,14 +497,13 @@ export default function DashboardHomePage() {
       }),
     refetchOnWindowFocus: false,
   });
-
-  const reminderItems = useMemo(
-    () => remindersQuery.data?.data ?? [],
-    [remindersQuery.data?.data],
-  );
   const recentProjects = useMemo(
     () => projectsQuery.data?.data ?? [],
     [projectsQuery.data?.data],
+  );
+  const recentActivity = useMemo(
+    () => activityQuery.data?.data ?? [],
+    [activityQuery.data?.data],
   );
 
   const activeRecent = recentProjects.filter((p) => !p.isArchived).length;
@@ -615,48 +702,129 @@ export default function DashboardHomePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-md pm-tone-info">
-                <Bell className="size-4" />
-              </div>
-              <div>
-                <CardTitle className="text-base leading-none">
-                  Upcoming reminders
-                </CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Pending reminders due next.
-                </p>
-              </div>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/dashboard/reminders">
-                View all
-                <ArrowRight className="ml-2 size-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {remindersQuery.isLoading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="h-28 w-full" />
-              ))
-            ) : reminderItems.length ? (
-              reminderItems.map((reminder) => (
-                <ReminderCard key={reminder.id} reminder={reminder} />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
-                <Bell className="size-8 text-muted-foreground/60" />
-                <p className="mt-2 text-sm font-medium">All caught up</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  No pending reminders right now.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {canViewActivity ? (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <Sparkles className="size-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base leading-none">
+                      Recent activity
+                    </CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      The latest project and team signals across your workspace.
+                    </p>
+                  </div>
+                </div>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/dashboard/activity">
+                    View all
+                    <ArrowRight className="ml-2 size-4" />
+                  </Link>
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {activityQuery.isLoading ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="flex gap-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-4/5" />
+                          <Skeleton className="h-3 w-3/5" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recentActivity.length ? (
+                  <div className="space-y-1">
+                    {recentActivity.map((activity, index) => {
+                      const meta = getWelcomeActivityMeta(activity);
+                      const Icon = meta.icon;
+
+                      return (
+                        <Link
+                          key={activity.id}
+                          href="/dashboard/activity"
+                          className="group block rounded-xl px-1 py-2 transition-colors hover:bg-muted/40"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="relative flex flex-col items-center">
+                              <Avatar className="size-10 border">
+                                {activity.actor.image ? (
+                                  <AvatarImage
+                                    src={resolveActivityActorImage(activity.actor.image)}
+                                    alt={activity.actor.name ?? "Actor"}
+                                  />
+                                ) : null}
+                                <AvatarFallback className="text-[11px] font-semibold">
+                                  {getInitials(activity.actor.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                              {index !== recentActivity.length - 1 ? (
+                                <span className="mt-1 h-12 w-px bg-border" aria-hidden="true" />
+                              ) : null}
+                            </div>
+
+                            <div className="min-w-0 flex-1 pb-3">
+                              <div className="flex items-start gap-2">
+                                <span
+                                  className={cn(
+                                    "mt-1 flex size-6 shrink-0 items-center justify-center rounded-full border",
+                                    meta.dotClass,
+                                  )}
+                                >
+                                  <Icon className="size-3.5" />
+                                </span>
+                                <div className="min-w-0 space-y-1">
+                                  <p className="text-sm leading-5 text-foreground">
+                                    <span className="font-semibold">
+                                      {activity.actor.name ?? "System"}
+                                    </span>{" "}
+                                    {getWelcomeActivitySummary(activity)}
+                                  </p>
+                                  <div className="rounded-md bg-muted/50 px-2.5 py-2 text-xs text-muted-foreground">
+                                    <span className="font-medium text-foreground">
+                                      {activity.targetLabel}
+                                    </span>
+                                    <span className="mx-1.5 text-muted-foreground/70">•</span>
+                                    {activity.project.name}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(activity.occurredAt, {
+                                      addSuffix: true,
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+
+                    <div className="pt-2 text-center">
+                      <Button asChild variant="ghost" size="sm" className="text-xs">
+                        <Link href="/dashboard/activity">View all activity</Link>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-10 text-center">
+                    <Sparkles className="size-8 text-muted-foreground/60" />
+                    <p className="mt-2 text-sm font-medium">No recent activity yet</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Project updates, comments, milestones, and team actions will appear here.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
       </section>
     </div>
   );

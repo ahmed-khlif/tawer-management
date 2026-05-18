@@ -21,6 +21,8 @@ export const API = {
     AI_INSIGHTS: (projectId: string) => buildUrl(`/projects/${projectId}/ai/insights`),
     REPORT_OVERVIEW: (projectId: string) =>
       buildUrl(`/projects/${projectId}/reports/overview`),
+    REPORT_SNAPSHOT: (projectId: string) =>
+      buildUrl(`/projects/${projectId}/reports/snapshot`),
     TEAM_WORKLOAD: (projectId: string) =>
       buildUrl(`/projects/${projectId}/reports/team-workload`),
     PRODUCTIVITY: (projectId: string) =>
@@ -151,10 +153,13 @@ export const API = {
   },
   ANALYTICS: {
     OVERVIEW: () => buildUrl("/analytics/overview"),
+    OVERVIEW_SNAPSHOT: () => buildUrl("/analytics/overview/snapshot"),
     EMPLOYEE_METRICS: (userId: string) =>
       buildUrl(`/analytics/employees/${userId}/metrics`),
     EMPLOYEE_SUMMARY: (userId: string) =>
       buildUrl(`/analytics/employees/${userId}`),
+    EMPLOYEE_SNAPSHOT: (userId: string) =>
+      buildUrl(`/analytics/employees/${userId}/snapshot`),
   },
   AI: {
     PREDICT_TASK_DURATION: () => buildUrl("/ai/predict-task-duration"),

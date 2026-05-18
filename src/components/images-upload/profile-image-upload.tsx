@@ -1,22 +1,23 @@
 "use client";
 import { FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CircleUserRoundIcon, Trash2Icon, UploadIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CameraIcon, CircleUserRoundIcon, Trash2Icon } from "lucide-react";
 import { useFileUpload } from "@/hooks/use-file-upload";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 
 interface Props {
   inputName?: string;
   defaultImageUrlInputName?: string;
   defaultImageUrl?: string | null;
+  completionPercentage?: number;
 }
 
 export default function ProfileImageUpload({
   inputName = "image",
   defaultImageUrlInputName = "imageUrl",
-  defaultImageUrl = null
+  defaultImageUrl = null,
+  completionPercentage
 }: Props) {
   const { control } = useFormContext();
 
@@ -42,6 +43,19 @@ export default function ProfileImageUpload({
   const file = files[0];
   const previewUrl = file?.preview || (defaultImageUrlIsDisplayed ? defaultImageUrl : null);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const size = 112; 
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = mounted && typeof completionPercentage === "number"
+    ? circumference - (Math.max(0, Math.min(100, completionPercentage)) / 100) * circumference
+    : circumference;
+
   return (
     <FormField
       name={inputName}
@@ -50,81 +64,111 @@ export default function ProfileImageUpload({
         <FormItem>
           <FormControl>
             <div
-              className="inline-flex items-center gap-4 align-top"
+              className="relative inline-flex items-center justify-center align-top"
               onDragOver={handleDragOver}
               onDragEnter={handleDragEnter}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}>
+              {/* Circular Progress Ring */}
+              {typeof completionPercentage === "number" && (
+                <svg 
+                  className="absolute top-1/2 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rotate-[-90deg]" 
+                  viewBox={`0 0 ${size} ${size}`}
+                >
+                  <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="none"
+                    className="stroke-border/40"
+                    strokeWidth={strokeWidth}
+                  />
+                  <circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    fill="none"
+                    className="stroke-primary transition-all duration-1000 ease-out"
+                    strokeWidth={strokeWidth}
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                  />
+                </svg>
+              )}
+
               {/* Avatar Preview */}
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={previewUrl || undefined} />
-                <AvatarFallback>
-                  <CircleUserRoundIcon className="opacity-45" />
+              <Avatar className="h-24 w-24 border-2 border-border/50">
+                <AvatarImage src={previewUrl || undefined} className="object-cover" />
+                <AvatarFallback className="bg-muted/50">
+                  <CircleUserRoundIcon className="h-10 w-10 text-muted-foreground opacity-50" />
                 </AvatarFallback>
               </Avatar>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <input
-                    {...inputProps}
-                    onChange={(e) => {
-                      const fileList = e.target.files;
-                      if (fileList && fileList.length > 0) {
-                        field.onChange(fileList[0]);
-                        onChange?.(e);
-                      }
-                    }}
-                    className="sr-only"
-                  />
+              {/* Hidden File Input */}
+              <input
+                {...inputProps}
+                onChange={(e) => {
+                  const fileList = e.target.files;
+                  if (fileList && fileList.length > 0) {
+                    field.onChange(fileList[0]);
+                    onChange?.(e);
+                  }
+                }}
+                className="sr-only"
+              />
 
-                  <Button type="button" variant="outline" size="sm" onClick={openFileDialog}>
-                    <UploadIcon className="mr-2 h-4 w-4" />
-                    {previewUrl ? "Change image" : "Upload image"}
-                  </Button>
+              {/* Upload Trigger Badge */}
+              <button
+                type="button"
+                onClick={openFileDialog}
+                className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm ring-4 ring-background transition-all hover:scale-105 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                aria-label={previewUrl ? "Change image" : "Upload image"}
+              >
+                <CameraIcon className="h-4 w-4" />
+              </button>
 
+              {/* Delete Trigger Badge (if image exists) */}
+              {previewUrl && (
+                <>
                   {defaultImageUrlInputName && defaultImageUrl ? (
                     <FormField
                       name={defaultImageUrlInputName}
                       render={({ field: defaultField }) => (
-                        <div className="flex flex-col gap-3">
+                        <>
                           {defaultImageUrl !== null && (
                             <input type="hidden" {...defaultField} value={defaultImageUrl} />
                           )}
-                          {previewUrl && (
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="destructive"
-                              className="h-9 w-9"
-                              onClick={() => {
-                                defaultField.onChange("");
-                                setDefaultImageUrlIsDisplayed(false);
-                              }}>
-                              <Trash2Icon className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
+                          <button
+                            type="button"
+                            className="absolute top-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm ring-4 ring-background transition-all hover:scale-105 hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            onClick={() => {
+                              defaultField.onChange("");
+                              setDefaultImageUrlIsDisplayed(false);
+                            }}
+                            aria-label="Remove image"
+                          >
+                            <Trash2Icon className="h-3.5 w-3.5" />
+                          </button>
+                        </>
                       )}
                     />
                   ) : (
-                    previewUrl && (
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="destructive"
-                        className="h-9 w-9"
-                        onClick={() => {
-                          removeFile(file.id);
-                          field.onChange(undefined);
-                          setDefaultImageUrlIsDisplayed(false);
-                        }}>
-                        <Trash2Icon className="h-4 w-4" />
-                      </Button>
-                    )
+                    <button
+                      type="button"
+                      className="absolute top-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm ring-4 ring-background transition-all hover:scale-105 hover:bg-destructive/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      onClick={() => {
+                        removeFile(file?.id);
+                        field.onChange(undefined);
+                        setDefaultImageUrlIsDisplayed(false);
+                      }}
+                      aria-label="Remove image"
+                    >
+                      <Trash2Icon className="h-3.5 w-3.5" />
+                    </button>
                   )}
-                </div>
-              </div>
+                </>
+              )}
 
               {/* Hidden input for the default URL to keep form state in sync */}
               {defaultImageUrl && (

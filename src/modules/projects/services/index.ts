@@ -2,6 +2,7 @@ import { USE_MOCK } from "@/lib/mock-config";
 
 // ── Extraction: API implementations ─────────────────────────────────────────
 import retrieveProjectsApi from "./api/projects";
+import { retrieveAllProjects as retrieveAllProjectsApi } from "./api/projects-all";
 import fetchProjectStatusCountsApi from "./api/project-status-counts";
 import retrieveProjectByIdApi from "./api/project";
 import retrieveProjectTasksApi from "./api/project-tasks";
@@ -60,6 +61,7 @@ const isMock = USE_MOCK();
 
 // ── Extraction exports ───────────────────────────────────────────────────────
 export const retrieveProjects        = isMock ? mockRetrieveProjects       : retrieveProjectsApi;
+export const retrieveAllProjects     = isMock ? async () => []            : retrieveAllProjectsApi;
 export const fetchProjectStatusCounts =
   isMock ? mockFetchProjectStatusCounts : fetchProjectStatusCountsApi;
 export const retrieveProjectById     = isMock ? mockRetrieveProjectById    : retrieveProjectByIdApi;

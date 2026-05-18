@@ -4,13 +4,17 @@ import { isMockMode } from "@/lib/mock-config";
 import { refreshToken } from "@/modules/auth/services/refresh-token";
 import extractJWTokens from "@/modules/auth/utils/jwt/extract-tokens";
 import {
+  EmployeeAnalyticsSnapshot,
   EmployeeAnalyticsSummary,
   EmployeeProductivityMetrics,
+  ExecutiveAnalyticsSnapshot,
   ExecutiveAnalyticsOverview,
 } from "@/modules/analytics/types";
 import {
+  castEmployeeAnalyticsSnapshot,
   castEmployeeAnalyticsSummary,
   castEmployeeProductivityMetrics,
+  castExecutiveAnalyticsSnapshot,
   castExecutiveAnalyticsOverview,
 } from "@/modules/analytics/types/cast-analytics";
 
@@ -37,6 +41,24 @@ export async function fetchExecutiveAnalyticsOverview(): Promise<ExecutiveAnalyt
   } catch (error: any) {
     if (error?.response?.status === 401) {
       return (await refreshToken(fetchExecutiveAnalyticsOverview)) ?? EMPTY_OVERVIEW;
+    }
+    throw error;
+  }
+}
+
+export async function fetchExecutiveAnalyticsSnapshot(): Promise<ExecutiveAnalyticsSnapshot | null> {
+  if (isMockMode()) return null;
+
+  try {
+    const response = await GET(API.ANALYTICS.OVERVIEW_SNAPSHOT(), getHeaders());
+    return castExecutiveAnalyticsSnapshot(
+      response.data as ExecutiveAnalyticsSnapshot,
+    );
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
+      return (
+        (await refreshToken(fetchExecutiveAnalyticsSnapshot)) ?? null
+      );
     }
     throw error;
   }
@@ -72,6 +94,27 @@ export async function fetchEmployeeProductivityMetrics(
     if (error?.response?.status === 401) {
       return (
         (await refreshToken(() => fetchEmployeeProductivityMetrics(userId))) ?? null
+      );
+    }
+    throw error;
+  }
+}
+
+export async function fetchEmployeeAnalyticsSnapshot(
+  userId: string,
+): Promise<EmployeeAnalyticsSnapshot | null> {
+  if (isMockMode()) return null;
+
+  try {
+    const response = await GET(API.ANALYTICS.EMPLOYEE_SNAPSHOT(userId), getHeaders());
+    return castEmployeeAnalyticsSnapshot(
+      response.data as EmployeeAnalyticsSnapshot,
+    );
+  } catch (error: any) {
+    if (error?.response?.status === 401) {
+      return (
+        (await refreshToken(() => fetchEmployeeAnalyticsSnapshot(userId))) ??
+        null
       );
     }
     throw error;

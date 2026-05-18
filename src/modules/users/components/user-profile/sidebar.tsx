@@ -17,6 +17,8 @@ import {
   userRoleDotClass,
   userRoleStyle,
 } from "@/modules/projects/utils/badges/user-role-badges";
+import { ProfileCompletionCard } from "./profile-completion-card";
+import { getProfileCompletionSummary } from "../../utils/profile-completion";
 
 interface Props {
   user: UserType;
@@ -48,6 +50,10 @@ export function ProfileSidebar({
 
   return (
     <div className="sticky top-24 space-y-5">
+      {isMyProfile && getProfileCompletionSummary(user).percentage < 100 ? (
+        <ProfileCompletionCard user={user} compact />
+      ) : null}
+
       <Card className="border-border/70 bg-card/95 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">{t("about")}</CardTitle>

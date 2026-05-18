@@ -2,6 +2,7 @@
 
 import DOMPurify from "dompurify";
 import { format } from "date-fns";
+import { Activity, CalendarRange, Layers3, Target } from "lucide-react";
 import { ErrorBanner } from "@/components/error-banner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +48,13 @@ export default function SprintDetailSheet({
   const burndownQuery = useSprintBurndown(sprint?.id);
   const aiCapacityQuery = useSprintAiCapacity(projectId, sprint?.id);
   const permissions = useProjectPermissions(projectId);
+  const totalTasks = sprint?.tasks?.length ?? 0;
+  const completedTasks =
+    sprint?.tasks?.filter((task) =>
+      ["DONE", "COMPLETED"].includes(task.status?.toUpperCase?.() ?? ""),
+    ).length ?? 0;
+  const progressPercent =
+    totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -68,6 +76,61 @@ export default function SprintDetailSheet({
               </div>
             </SheetHeader>
             <div className="space-y-4 p-4">
+              <Card className="overflow-hidden border-border/60">
+                <CardContent className="space-y-4 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-2">
+                      <Badge variant="outline">{sprint.status}</Badge>
+                      <div>
+                        <p className="text-2xl font-semibold tracking-tight">{sprint.name}</p>
+                        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                          {plainDescription}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-muted/20 px-4 py-3 text-right">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Delivery pace
+                      </p>
+                      <p className="mt-1 text-3xl font-semibold">{progressPercent}%</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-4">
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <CalendarRange className="size-4" />
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Window</p>
+                      </div>
+                      <p className="mt-2 text-sm font-medium">
+                        {format(sprint.startDate, "PPP")} - {format(sprint.endDate, "PPP")}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Target className="size-4" />
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Capacity</p>
+                      </div>
+                      <p className="mt-2 text-sm font-medium">{sprint.capacity ?? "Not set"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Activity className="size-4" />
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Tasks</p>
+                      </div>
+                      <p className="mt-2 text-sm font-medium">{completedTasks}/{totalTasks} completed</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Layers3 className="size-4" />
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em]">Epic spread</p>
+                      </div>
+                      <p className="mt-2 text-sm font-medium">{sprint.epicBreakdown?.length ?? 0} linked epics</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle>Info</CardTitle>
