@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Form,
   FormControl,
@@ -182,7 +183,12 @@ export default function MilestoneUploadSheet({
               name="taskIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Linked Tasks</FormLabel>
+                  <div className="flex items-center justify-between gap-2">
+                    <FormLabel>Linked Tasks</FormLabel>
+                    <Badge variant="outline" className="text-[10px] font-semibold">
+                      {(field.value || []).length} linked
+                    </Badge>
+                  </div>
                   <FormControl>
                     <TaskSelector
                       projectId={projectId}
@@ -191,6 +197,9 @@ export default function MilestoneUploadSheet({
                       placeholder="Link existing tasks to this milestone..."
                     />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Link the tasks that define this checkpoint so milestone progress and overdue signals stay accurate.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

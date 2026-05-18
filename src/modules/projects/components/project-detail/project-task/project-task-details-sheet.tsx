@@ -58,7 +58,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   task: ProjectTaskType | null;
-  onEditClick: () => void;
+  onEditClick: (task?: ProjectTaskType | null) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -203,7 +203,12 @@ export function ProjectTaskDetailSheet({ projectId, isOpen, onClose, task: summa
                     defaultMessage={`Reminder for task ${task.title}`}
                   />
                 ) : null}
-                {canEdit && <Button variant="outline" size="sm" onClick={onEditClick}><Edit className="mr-1 size-4" />{t("edit")}</Button>}
+                {canEdit && (
+                  <Button variant="outline" size="sm" onClick={() => onEditClick(task)}>
+                    <Edit className="mr-1 size-4" />
+                    {t("edit")}
+                  </Button>
+                )}
                 {canDelete && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setIsDeleteTaskOpen(true)}><Trash2 className="size-4" /></Button>}
               </div>
             </div>

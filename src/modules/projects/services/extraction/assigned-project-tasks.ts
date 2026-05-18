@@ -1,13 +1,14 @@
 import { ProjectTaskType } from "@/modules/projects/types/project-tasks";
 import { castProjectTaskToFrontend } from "@/modules/projects/types/cast-project-task";
 import { USE_MOCK } from "@/lib/mock-config";
-import { fetchMyTasks } from "@/modules/projects/services/api/my-tasks";
+import { fetchMyTasks, fetchMyTasksInProject } from "@/modules/projects/services/api/my-tasks";
 import mockData from "../../mock_data/mock.json";
 
 const MOCK_ASSIGNEE_ID = "mock-user-id";
 
 export interface AssignedProjectTasksParams {
   search?: string;
+  projectId?: string;
   status?: string;
   priority?: string;
   type?: string;
@@ -19,6 +20,7 @@ function mockRetrieveAssignedProjectTasks(params: AssignedProjectTasksParams): P
   let tasks = [] as Array<Parameters<typeof castProjectTaskToFrontend>[0]>;
 
   for (const project of mockData.projects) {
+    if (params.projectId && project.id !== params.projectId) continue;
     const projectTasks = (project.tasks as unknown as typeof tasks) ?? [];
     tasks = tasks.concat(projectTasks.filter((t) => t.assigneeId === MOCK_ASSIGNEE_ID));
   }
@@ -39,13 +41,21 @@ export default async function retrieveAssignedProjectTasks(
 ): Promise<ProjectTaskType[]> {
   if (USE_MOCK()) return mockRetrieveAssignedProjectTasks(params);
 
-  const response = await fetchMyTasks({
-    page: params.page,
-    limit: params.limit ?? 100,
-    status: params.status,
-    priority: params.priority,
-    type: params.type,
-  });
+  const response = params.projectId
+    ? await fetchMyTasksInProject(params.projectId, {
+        page: params.page,
+        limit: params.limit ?? 100,
+        status: params.status,
+        priority: params.priority,
+        type: params.type,
+      })
+    : await fetchMyTasks({
+        page: params.page,
+        limit: params.limit ?? 100,
+        status: params.status,
+        priority: params.priority,
+        type: params.type,
+      });
   let tasks = response.data;
   if (params.search) {
     const q = params.search.toLowerCase();

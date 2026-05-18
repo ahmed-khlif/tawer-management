@@ -42,6 +42,12 @@ export function useMilestoneUpload(projectId: string) {
     await queryClient.invalidateQueries({
       queryKey: projectQueryKeys.milestones.gantt(projectId),
     });
+    await queryClient.invalidateQueries({
+      queryKey: ["project-tasks", projectId],
+    });
+    await queryClient.invalidateQueries({
+      queryKey: projectQueryKeys.tasks.kanban(projectId),
+    });
   };
 
   const createMutation = useMutation({

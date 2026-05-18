@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ButtonGroup } from "@/components/ui/button-group";
 import {
   HoverCard,
   HoverCardContent,
@@ -100,6 +99,12 @@ const ProjectCalendarTab = dynamic(
     loading: () => <Skeleton className="h-96 w-full" />,
   },
 );
+const ProjectPlanningGanttTab = dynamic(
+  () => import("./planning/project-planning-gantt-tab"),
+  {
+    loading: () => <Skeleton className="h-96 w-full" />,
+  },
+);
 
 interface Props {
   slug: string;
@@ -151,8 +156,14 @@ export default function ProjectDetail({ slug }: Props) {
         visible: permissions.canViewTask,
         subTabs: [
           {
-            value: "board",
-            label: t("tabs.board", { defaultValue: "Board" }),
+            value: "list",
+            label: t("tabs.list", { defaultValue: "List" }),
+            icon: LayoutList,
+            visible: permissions.canViewTask,
+          },
+          {
+            value: "kanban",
+            label: t("tabs.kanban", { defaultValue: "Kanban" }),
             icon: FolderKanban,
             visible: permissions.canViewTask,
           },
@@ -196,6 +207,12 @@ export default function ProjectDetail({ slug }: Props) {
             label: t("tabs.calendar", { defaultValue: "Calendar" }),
             icon: Calendar,
             visible: permissions.canViewCalendar,
+          },
+          {
+            value: "gantt",
+            label: t("tabs.gantt", { defaultValue: "Gantt" }),
+            icon: CalendarRange,
+            visible: permissions.canViewMilestone,
           },
         ].filter((s) => s.visible),
       },
@@ -252,7 +269,9 @@ export default function ProjectDetail({ slug }: Props) {
   // `?tab=board`, `?tab=backlog`, `?tab=sprints`, etc., still resolve.
   const legacyMap: Record<string, { group: string; sub?: string }> = {
     overview: { group: "overview" },
-    board: { group: "tasks", sub: "board" },
+    board: { group: "tasks", sub: "kanban" },
+    list: { group: "tasks", sub: "list" },
+    kanban: { group: "tasks", sub: "kanban" },
     backlog: { group: "tasks", sub: "backlog" },
     "my-tasks": { group: "tasks", sub: "board" }, // collapsed into Board + "Mine only" toggle
     sprints: { group: "planning", sub: "sprints" },
@@ -500,7 +519,7 @@ export default function ProjectDetail({ slug }: Props) {
 
         {currentGroup && currentGroup.subTabs.length > 1 ? (
           <div className="mb-4">
-            <ButtonGroup>
+            <div className="flex gap-3 overflow-x-auto pb-1">
               {currentGroup.subTabs.map((sub) => {
                 const Icon = sub.icon;
                 const isActive = activeSub === sub.value;
@@ -509,9 +528,13 @@ export default function ProjectDetail({ slug }: Props) {
                     key={sub.value}
                     type="button"
                     size="sm"
-                    variant={isActive ? "default" : "outline"}
+                    variant="outline"
                     aria-pressed={isActive}
-                    className="gap-1.5"
+                    className={
+                      isActive
+                        ? "h-9 rounded-full border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/15 hover:bg-primary"
+                        : "h-9 rounded-full border-border/70 bg-background/85 text-muted-foreground hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
+                    }
                     onClick={() => setActiveSub(sub.value)}
                   >
                     <Icon className="size-4" />
@@ -519,7 +542,7 @@ export default function ProjectDetail({ slug }: Props) {
                   </Button>
                 );
               })}
-            </ButtonGroup>
+            </div>
           </div>
         ) : null}
 
@@ -534,14 +557,18 @@ export default function ProjectDetail({ slug }: Props) {
         <TabsContent value="tasks" className="space-y-4 outline-none!">
           {activeSub === "backlog" ? (
             <ProjectBacklog project={project} permissions={permissions} />
+          ) : activeSub === "list" ? (
+            <ProjectTasks project={project} forcedViewMode="list" />
           ) : (
-            <ProjectTasks project={project} />
+            <ProjectTasks project={project} forcedViewMode="grid" />
           )}
         </TabsContent>
 
         <TabsContent value="planning" className="outline-none!">
           {activeSub === "calendar" ? (
             <ProjectCalendarTab project={project} permissions={permissions} />
+          ) : activeSub === "gantt" ? (
+            <ProjectPlanningGanttTab project={project} permissions={permissions} />
           ) : activeSub === "sprints" ? (
             <ProjectSprints project={project} />
           ) : activeSub === "epics" ? (

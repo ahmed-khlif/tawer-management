@@ -50,6 +50,7 @@ import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import { useMyReminders } from "@/modules/reminders/hooks/use-reminders";
 import { canSeeAnalyticsNav } from "@/modules/analytics/utils/access";
 import { canViewProjectActivity } from "@/modules/projects/utils/activity-access";
+import { canViewProjectTemplates } from "@/modules/projects/utils/template-access";
 
 type NavGroup = {
   title: string;
@@ -79,6 +80,7 @@ export function getNavItems({
 }): NavGroup[] {
   const canViewAnalytics = canSeeAnalyticsNav(user.roles);
   const canViewActivityHistory = canViewProjectActivity(user.roles);
+  const canBrowseTemplates = canViewProjectTemplates(user.roles);
 
   return [
     {
@@ -96,12 +98,15 @@ export function getNavItems({
             icon: Calculator,
           }
         ] : []),
-        {
-          title: "Project Templates",
-          href: "/dashboard/project-templates",
-          icon: Sparkles,
-          disabled: !hasPermissions(user.roles, "projectsManagement", "view"),
-        },
+        ...(canBrowseTemplates
+          ? [
+              {
+                title: "Project Templates",
+                href: "/dashboard/project-templates",
+                icon: Sparkles,
+              },
+            ]
+          : []),
         {
           title: t("navigation.projectsManagement"),
           href: "/dashboard/projects",

@@ -98,21 +98,21 @@ export function MyWorkloadSummaryCard() {
         <MetricCard
           icon={Timer}
           label="Estimated"
-          value={data ? `${data.totalEstimatedHours}h` : "—"}
+          value={data ? `${data.totalEstimatedHours}h` : "--"}
           tone="info"
           loading={loading}
         />
         <MetricCard
           icon={Clock}
           label="Actual"
-          value={data ? `${data.totalActualHours}h` : "—"}
+          value={data ? `${data.totalActualHours}h` : "--"}
           tone="running"
           loading={loading}
         />
         <MetricCard
           icon={Clock}
           label="Logged"
-          value={data ? `${data.totalLoggedHours}h` : "—"}
+          value={data ? `${data.totalLoggedHours}h` : "--"}
           tone="success"
           loading={loading}
         />
@@ -133,7 +133,7 @@ export function MyWorkloadSummaryCard() {
                       className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
                     >
                       <span className="font-medium">{status}</span>
-                      <span className="text-muted-foreground">· {count}</span>
+                      <span className="text-muted-foreground">- {count}</span>
                     </span>
                   ))}
                 </div>
@@ -153,7 +153,7 @@ export function MyWorkloadSummaryCard() {
                       className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
                     >
                       <span className="font-medium">{priority}</span>
-                      <span className="text-muted-foreground">· {count}</span>
+                      <span className="text-muted-foreground">- {count}</span>
                     </span>
                   ))}
                 </div>

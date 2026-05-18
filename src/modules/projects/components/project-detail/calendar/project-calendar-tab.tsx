@@ -152,7 +152,7 @@ export default function ProjectCalendarTab({
     switch (item.sourceType) {
       case "TASK":
         params.set("tab", "tasks");
-        params.set("sub", "board");
+        params.set("sub", "kanban");
         params.set("taskId", item.sourceId);
         break;
       case "MILESTONE":

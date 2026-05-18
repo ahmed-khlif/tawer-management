@@ -1,9 +1,15 @@
-"use client";;
+"use client";
 import React from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Calendar, FileIcon, Star, BellIcon } from "lucide-react";
-import { priorityClasses, statusClasses, favoriteActiveClasses } from "@/modules/tasks/utils/enum";
+import { Calendar, FileIcon, Star, BellIcon, GripVertical } from "lucide-react";
+import {
+  priorityClasses,
+  statusClasses,
+  favoriteActiveClasses,
+  statusDotColors,
+  taskStatusNamed,
+} from "@/modules/tasks/utils/enum";
 import { TaskType } from "@/modules/tasks/types/tasks";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
@@ -74,6 +80,8 @@ export function TaskItem({
 
   // Format reminder date for tooltip if it exists
   const reminderDateFormatted = task.reminderTime ? format((task.reminderTime), "MMM d, yyyy - h:mm a") : null;
+  const taskStatus = task.status as keyof typeof statusClasses;
+  const taskPriority = task.priority as keyof typeof priorityClasses;
 
   if (viewMode === "grid") {
     return (
@@ -81,12 +89,12 @@ export function TaskItem({
         <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
           <Card
             className={cn(
-              "group relative flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-md",
+              "group relative flex h-full cursor-pointer flex-col overflow-hidden border-border/70 bg-card transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md",
               task.status === "Completed" ? "opacity-70" : ""
             )}
             onClick={onClick}>
             <div className={cn("absolute left-0 top-0 h-full w-1 rounded-l-lg", statusAccentColor)} />
-            <CardContent className="flex h-full flex-col justify-between pl-5 pt-6 pb-4 pr-4">
+            <CardContent className="flex h-full flex-col justify-between pl-5 pt-5 pb-4 pr-4">
               <div className="flex flex-col gap-3">
                 <div className="flex items-start space-x-3">
                   <Checkbox
@@ -99,14 +107,17 @@ export function TaskItem({
                   />
 
                   <div className="flex-1 min-w-0">
+                    <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <GripVertical className="size-3.5 opacity-50" />
+                      {/* @ts-ignore - Assuming taskKey exists based on UI requirements */}
+                      {task.taskKey ? <span className="font-mono">{task.taskKey}</span> : null}
+                    </div>
                     <h3
                       className={
                         cn(
                           "text-md flex items-center flex-wrap gap-2 leading-tight font-medium",
                           task.status === "Completed" ? "text-muted-foreground line-through" : ""
                         )}>
-                        {/* @ts-ignore - Assuming taskKey exists based on UI requirements */}
-                        {task.taskKey && <span className="font-mono text-xs text-muted-foreground">{task.taskKey}</span>}
                         <span className="truncate">{task.title}</span>
                     </h3>
                   </div>
@@ -139,6 +150,25 @@ export function TaskItem({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 gap-1.5 rounded-full px-2 text-[10px] font-semibold uppercase tracking-wide shadow-none",
+                      statusClasses[taskStatus],
+                    )}
+                  >
+                    <span className={cn("size-1.5 rounded-full", statusDotColors[taskStatus])} />
+                    {taskStatusNamed[taskStatus]}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "h-5 rounded-full px-2 text-[10px] font-semibold uppercase tracking-wide shadow-none",
+                      priorityClasses[taskPriority],
+                    )}
+                  >
+                    {task.priority}
+                  </Badge>
                   <div className="text-muted-foreground flex items-center gap-1 text-sm">
                     <Calendar className="h-3 w-3" />
                     <span>{format((task.dueTime), "MMM d, yyyy")}</span>
@@ -170,10 +200,9 @@ export function TaskItem({
             <CardFooter className="flex flex-wrap justify-between border-t py-3">
               <div className="flex items-center gap-3 capitalize">
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span className={cn("size-1.5 shrink-0 rounded-full", statusDotColor)} />
-                  {task.status.replace("-", " ")}
+                  <GripVertical className="size-3 opacity-40" />
+                  Drag to reorder
                 </span>
-                <Badge variant="outline" className={cn("font-normal shadow-none", priorityClasses[task.priority])}>{task.priority}</Badge>
               </div>
 
               {(task.attachments?.length || 0) > 0 && (
@@ -195,7 +224,7 @@ export function TaskItem({
       <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
         <Card
           className={cn(
-            "group relative overflow-hidden cursor-pointer transition-all hover:shadow-md",
+            "group relative overflow-hidden cursor-pointer border-border/70 bg-card transition-all hover:border-primary/25 hover:shadow-md",
             task.status === "Completed" ? "opacity-70" : ""
           )}
           onClick={onClick}>
@@ -214,6 +243,7 @@ export function TaskItem({
             <div className="flex grow flex-col space-y-2">
               <div className="flex flex-col items-start justify-between space-y-1 lg:flex-row lg:space-y-0">
                 <div className="flex min-w-0 flex-1 items-center space-x-2 pr-4">
+                  <GripVertical className="mt-0.5 size-4 shrink-0 text-muted-foreground/45" />
                   <h3
                     className={cn(
                       "text-md flex items-center flex-wrap gap-2 leading-tight font-medium",
@@ -252,19 +282,28 @@ export function TaskItem({
                 </div>
 
                 <div className="flex flex-col gap-2 capitalize">
-                  {/* STATUS + PRIORITY */}
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground capitalize">
-                      <span className={cn("size-1.5 shrink-0 rounded-full", statusDotColor)} />
-                      {task.status.replace("-", " ")}
-                    </span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 gap-1.5 rounded-full px-2 text-[10px] font-semibold uppercase tracking-wide shadow-none",
+                        statusClasses[taskStatus],
+                      )}
+                    >
+                      <span className={cn("size-1.5 rounded-full", statusDotColors[taskStatus])} />
+                      {taskStatusNamed[taskStatus]}
+                    </Badge>
 
-                    <Badge variant="outline" className={cn("font-normal shadow-none", priorityClasses[task.priority])}>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "h-5 rounded-full px-2 text-[10px] font-semibold uppercase tracking-wide shadow-none",
+                        priorityClasses[taskPriority],
+                      )}
+                    >
                       {task.priority}
                     </Badge>
                   </div>
-
-
                 </div>
 
               </div>

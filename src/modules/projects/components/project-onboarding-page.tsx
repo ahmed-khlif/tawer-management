@@ -17,7 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import useCurrentUser from "@/modules/auth/hooks/users/use-user";
-import { hasPermissions } from "@/modules/auth/utils/users-permissions";
+import {
+  canCreateFromProjectTemplates,
+  canViewProjectTemplates,
+} from "@/modules/projects/utils/template-access";
 import {
   markOnboardingCompleted,
   markOnboardingSkipped,
@@ -169,14 +172,15 @@ export default function ProjectOnboardingPage() {
   const { user } = useCurrentUser();
   const [stepIndex, setStepIndex] = React.useState(0);
 
-  const canViewProjects = !!user && hasPermissions(user.roles, "projectsManagement", "view");
+  const canViewTemplates = !!user && canViewProjectTemplates(user.roles);
+  const canCreateProjects = !!user && canCreateFromProjectTemplates(user.roles);
   const step = ONBOARDING_STEPS[stepIndex];
   const isLastStep = stepIndex === ONBOARDING_STEPS.length - 1;
 
   const finish = React.useCallback(() => {
     markOnboardingCompleted();
-    router.replace(canViewProjects ? "/dashboard/project-templates" : "/dashboard");
-  }, [canViewProjects, router]);
+    router.replace(canViewTemplates ? "/dashboard/project-templates" : "/dashboard");
+  }, [canViewTemplates, router]);
 
   const skip = React.useCallback(() => {
     markOnboardingSkipped();
@@ -184,7 +188,7 @@ export default function ProjectOnboardingPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,rgba(255,255,245,1)_0%,rgba(249,247,255,1)_100%)] text-foreground">
+    <div className="min-h-screen bg-[linear-gradient(180deg,rgba(255,255,245,1)_0%,rgba(249,247,255,1)_100%)] text-foreground dark:bg-[linear-gradient(180deg,rgba(15,12,27,1)_0%,rgba(25,20,44,1)_55%,rgba(14,11,24,1)_100%)]">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-6 md:px-10 lg:px-14">
       <div className="mb-6 flex justify-end">
         <Button variant="ghost" className="gap-1 text-muted-foreground" onClick={skip}>
@@ -224,7 +228,7 @@ export default function ProjectOnboardingPage() {
           <div className="flex flex-col gap-3 sm:flex-row">
             {isLastStep ? (
               <Button className="gap-2 sm:min-w-[220px]" onClick={finish}>
-                {canViewProjects ? "Open project templates" : "Go to workspace"}
+                {canViewTemplates ? "Open project templates" : "Go to workspace"}
                 <ArrowRight className="size-4" />
               </Button>
             ) : (
@@ -238,8 +242,12 @@ export default function ProjectOnboardingPage() {
             )}
 
             <Button asChild variant="outline">
-              <Link href={canViewProjects ? "/dashboard/project-templates" : "/dashboard"}>
-                {canViewProjects ? "Explore templates" : "Go to dashboard"}
+              <Link href={canViewTemplates ? "/dashboard/project-templates" : "/dashboard"}>
+                {canViewTemplates
+                  ? canCreateProjects
+                    ? "Explore templates"
+                    : "Browse templates"
+                  : "Go to dashboard"}
               </Link>
             </Button>
           </div>

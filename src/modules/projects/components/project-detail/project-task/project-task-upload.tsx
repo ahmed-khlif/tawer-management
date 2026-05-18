@@ -36,6 +36,7 @@ import useProjectTaskUpload from "../../../hooks/tasks/use-project-task-upload";
 import useProject from "../../../hooks/projects/use-project";
 import useProjectMilestones from "../../../hooks/milestones/use-project-milestones";
 import useProjectSprints from "../../../hooks/sprints/use-project-sprints";
+import useProjectTask from "../../../hooks/tasks/use-project-task";
 import { retrieveProjectTasksPaginated } from "../../../services/api/project-tasks";
 import { projectTaskStatusDotColors, projectTaskPriorityDotColors, projectTaskTypeDotColors } from "../../../utils/badges/project-task-badges";
 import AttachementUpload from "@/modules/projects/components/project-detail/project-task/attachments";
@@ -65,6 +66,28 @@ export default function ProjectTaskUploadSheet({
   const { project } = useProject(projectId);
   const milestonesQuery = useProjectMilestones(projectId, { page: 1, limit: 100, sortBy: "createdAtDesc" });
   const sprintsQuery = useProjectSprints(projectId, { enabled: isAgile && isOpen });
+  const detailedTaskQuery = useProjectTask(projectId, task?.id, {
+    enabled: isOpen && !!task?.id,
+  });
+
+  const effectiveTask = React.useMemo<ProjectTaskType | null | undefined>(() => {
+    if (!task) return task;
+    const detailedTask = detailedTaskQuery.data;
+    if (!detailedTask) return task;
+
+    return {
+      ...task,
+      ...detailedTask,
+      assignee: detailedTask.assignee ?? task.assignee,
+      epic: detailedTask.epic ?? task.epic,
+      subTasks: detailedTask.subTasks ?? task.subTasks,
+      comments: detailedTask.comments ?? task.comments,
+      dependencies: detailedTask.dependencies ?? task.dependencies,
+      labels: detailedTask.labels ?? task.labels,
+      timeEntries: detailedTask.timeEntries ?? task.timeEntries,
+      attachments: detailedTask.attachments ?? task.attachments,
+    };
+  }, [task, detailedTaskQuery.data]);
 
   const projectTasksQuery = useQuery({
     queryKey: ["project-tasks", projectId, "parent-picker"],
@@ -91,7 +114,7 @@ export default function ProjectTaskUploadSheet({
 
   const { form, isPending, onSubmit, error, clearAiBlockerRisk } = useProjectTaskUpload({
     projectId,
-    task,
+    task: effectiveTask,
     onSuccess: (risk) => {
       setResetFilesTrigger(t => t + 1);
       if (!risk) {
@@ -176,7 +199,7 @@ export default function ProjectTaskUploadSheet({
                   <FormControl>
                     <TextEditor
                       placeholder={t("upload.form.placeholders.description")}
-                      initialContent={task?.description || ""}
+                      initialContent={effectiveTask?.description || ""}
                       value={typeof value === "string" ? value : ""}
                       onChange={onChange}
                       name={name}

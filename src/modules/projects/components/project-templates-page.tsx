@@ -22,7 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import AccessDenied from "@/components/error/access-denied";
 import { PageHeaderStrip } from "./shared/page-header-strip";
+import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import type { ProjectTemplateCategory } from "../types/project-template-presets";
 import {
   PROJECT_TEMPLATE_CATEGORIES,
@@ -34,6 +36,10 @@ import {
   businessUnitNamed,
   projectTypeClasses,
 } from "../utils/badges/project-badges";
+import {
+  canCreateFromProjectTemplates,
+  canViewProjectTemplates,
+} from "../utils/template-access";
 
 const CATEGORY_STYLES: Record<string, string> = {
   Software:
@@ -107,9 +113,12 @@ function getTemplateIcon(templateId: string) {
 }
 
 export default function ProjectTemplatesPage() {
+  const { user } = useCurrentUser();
   const [search, setSearch] = React.useState("");
   const [category, setCategory] =
     React.useState<ProjectTemplateCategory | "All Templates">("All Templates");
+  const canBrowseTemplates = canViewProjectTemplates(user?.roles);
+  const canCreateProjects = canCreateFromProjectTemplates(user?.roles);
 
   const filteredTemplates = React.useMemo(() => {
     return PROJECT_TEMPLATE_PRESETS.filter((template) => {
@@ -128,6 +137,10 @@ export default function ProjectTemplatesPage() {
       return matchesCategory && matchesSearch;
     });
   }, [category, search]);
+
+  if (!canBrowseTemplates) {
+    return <AccessDenied />;
+  }
 
   return (
     <div className="space-y-6">
@@ -152,9 +165,11 @@ export default function ProjectTemplatesPage() {
             },
           ]}
           actions={
-            <Button asChild size="sm">
-              <Link href="/dashboard/projects?create=1">Create Project</Link>
-            </Button>
+            canCreateProjects ? (
+              <Button asChild size="sm">
+                <Link href="/dashboard/projects?create=1">Create Project</Link>
+              </Button>
+            ) : null
           }
         />
 
@@ -201,9 +216,15 @@ export default function ProjectTemplatesPage() {
             <p className="relative mt-2 max-w-[220px] text-sm leading-relaxed text-muted-foreground">
               Build your workflow from the ground up tailored to your exact needs.
             </p>
-            <Button asChild className="relative mt-6 w-full">
-              <Link href="/dashboard/projects?create=1">Create blank project</Link>
-            </Button>
+            {canCreateProjects ? (
+              <Button asChild className="relative mt-6 w-full">
+                <Link href="/dashboard/projects?create=1">Create blank project</Link>
+              </Button>
+            ) : (
+              <p className="relative mt-6 text-xs font-medium text-muted-foreground">
+                Project creation is limited to users with project creation permission.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -254,16 +275,22 @@ export default function ProjectTemplatesPage() {
                   </Badge>
                 </div>
 
-                <Button
-                  asChild
-                  variant="outline"
-                  className="group/btn w-full gap-2 border-primary/30 bg-background/60 text-foreground hover:bg-primary hover:text-foreground dark:bg-background/30"
-                >
-                  <Link href={`/dashboard/projects?create=1&template=${template.id}`}>
-                    Preview Template
-                    <ArrowRight className="size-4 transition-transform group-hover/btn:translate-x-1" />
-                  </Link>
-                </Button>
+                {canCreateProjects ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="group/btn w-full gap-2 border-primary/30 bg-background/60 text-foreground hover:bg-primary hover:text-foreground dark:bg-background/30"
+                  >
+                    <Link href={`/dashboard/projects?create=1&template=${template.id}`}>
+                      Use Template
+                      <ArrowRight className="size-4 transition-transform group-hover/btn:translate-x-1" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Visible for planning reference. Ask a project manager to create from this template.
+                  </div>
+                )}
               </CardContent>
             </Card>
           );

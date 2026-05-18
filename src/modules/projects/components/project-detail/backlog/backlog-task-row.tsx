@@ -17,6 +17,8 @@ import { cn } from "@/lib/utils";
 import {
   projectTaskPriorityClasses,
   projectTaskTypeClasses,
+  resolveTaskStatusDotStyle,
+  resolveTaskStatusStyle,
 } from "@/modules/projects/utils/badges/project-task-badges";
 
 interface BacklogTaskRowProps {
@@ -45,6 +47,9 @@ export function BacklogTaskRow({
     transition,
     opacity: isDragging ? 0.6 : 1,
   };
+  const statusBadge = resolveTaskStatusStyle(task.status);
+  const statusDot = resolveTaskStatusDotStyle(task.status);
+  const statusLabel = task.status.replace(/_/g, " ").toLowerCase();
 
   return (
     <div
@@ -67,15 +72,14 @@ export function BacklogTaskRow({
         onClick={(event) => event.stopPropagation()}
       />
       <div className="flex flex-1 flex-col">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-muted-foreground">{task.key}</span>
-          <p className="text-sm font-medium">{task.title}</p>
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-mono font-bold tracking-wider text-primary">
+            {task.key}
+          </span>
           <Badge
             variant="outline"
             className={cn(
-              "capitalize",
+              "capitalize rounded-full text-[10px] font-semibold tracking-wide",
               task.type
                 ? projectTaskTypeClasses[task.type.toUpperCase()]
                 : undefined,
@@ -83,10 +87,27 @@ export function BacklogTaskRow({
           >
             {task.type?.toLowerCase()}
           </Badge>
+          <p className="text-sm font-medium">{task.title}</p>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge
             variant="outline"
             className={cn(
-              "capitalize",
+              "capitalize rounded-full text-[10px] font-semibold tracking-wide",
+              statusBadge.className,
+            )}
+            style={statusBadge.style}
+          >
+            <span
+              className={cn("mr-1 inline-flex size-1.5 rounded-full", statusDot.className)}
+              style={statusDot.style}
+            />
+            {statusLabel}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn(
+              "capitalize rounded-full text-[10px] font-semibold tracking-wide",
               task.priority
                 ? projectTaskPriorityClasses[task.priority.toUpperCase()]
                 : undefined,

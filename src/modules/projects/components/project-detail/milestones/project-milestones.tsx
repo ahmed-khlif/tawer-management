@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Flag, Plus, Activity, AlertCircle, CheckCircle2, LayoutGrid, GanttChart, SlidersHorizontal, CheckCircle, Clock, ShieldAlert, ShieldCheck, ShieldEllipsis, Search } from "lucide-react";
+import { Flag, Plus, Activity, AlertCircle, CheckCircle2, LayoutGrid, SlidersHorizontal, CheckCircle, Clock, ShieldAlert, ShieldCheck, ShieldEllipsis, Search, CalendarClock, Sparkles, ListChecks } from "lucide-react";
 import { ErrorBanner } from "@/components/error-banner";
 import { PermissionGuard } from "@/components/permission-guard";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -13,16 +17,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import useMilestoneGantt from "@/modules/projects/hooks/milestones/use-milestone-gantt";
 import useProjectMilestones from "@/modules/projects/hooks/milestones/use-project-milestones";
 import useMilestoneUpload from "@/modules/projects/hooks/milestones/use-milestone-upload";
 import { ProjectPermissions } from "@/modules/projects/hooks/permissions/use-project-permissions";
 import { ProjectType } from "@/modules/projects/types/projects";
 import { Milestone } from "@/modules/projects/types/project-milestones";
-import type { GanttRow } from "@/modules/projects/types/gantt";
 import MilestoneCard from "./milestone-card";
 import MilestoneDetailSheet from "./milestone-detail-sheet";
-import ProjectGanttChart from "../../shared/gantt/project-gantt-chart";
 import MilestoneUploadSheet from "./milestone-upload-sheet";
 import { EmptyState } from "../../shared/empty-state";
 import { PageHeaderStrip } from "../../shared/page-header-strip";
@@ -40,6 +41,35 @@ function isOverdue(milestone: Milestone): boolean {
   return new Date(milestone.dueDate).getTime() < Date.now();
 }
 
+function getMilestoneTone(milestone: Milestone) {
+  if (milestone.completedAt) {
+    return {
+      label: "Completed",
+      dot: "bg-emerald-500",
+      badge: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+    };
+  }
+  if (isOverdue(milestone)) {
+    return {
+      label: "Overdue",
+      dot: "bg-destructive",
+      badge: "bg-destructive/10 text-destructive border-destructive/20",
+    };
+  }
+  if (milestone.progress > 0) {
+    return {
+      label: "In Progress",
+      dot: "bg-primary",
+      badge: "bg-primary/10 text-primary border-primary/20",
+    };
+  }
+  return {
+    label: "Upcoming",
+    dot: "bg-amber-500",
+    badge: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  };
+}
+
 export default function ProjectMilestones({
   project,
   permissions,
@@ -47,7 +77,7 @@ export default function ProjectMilestones({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"list" | "grid" | "gantt">("grid");
+  const [view, setView] = useState<"list" | "grid">("grid");
   const [search, setSearch] = useState("");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedRisks, setSelectedRisks] = useState<string[]>([]);
@@ -63,7 +93,6 @@ export default function ProjectMilestones({
     page: 1,
     limit: 50,
   });
-  const ganttQuery = useMilestoneGantt(project.id);
   const { deleteMilestone, completeMilestone } = useMilestoneUpload(project.id);
   const selectedMilestoneId = searchParams.get("milestoneId");
 
@@ -145,6 +174,25 @@ export default function ProjectMilestones({
   const total = milestonesQuery.data?.pagination.records ?? 0;
   const completed = milestones.filter((m) => !!m.completedAt).length;
   const overdue = milestones.filter(isOverdue).length;
+  const inProgress = milestones.filter(
+    (m) => !m.completedAt && !isOverdue(m) && m.progress > 0,
+  ).length;
+  const timelineMilestones = useMemo(
+    () =>
+      [...milestones]
+        .filter((milestone) => milestone.dueDate)
+        .sort(
+          (a, b) =>
+            new Date(a.dueDate as string).getTime() -
+            new Date(b.dueDate as string).getTime(),
+        )
+        .slice(0, 8),
+    [milestones],
+  );
+  const currentTimelineMilestone =
+    timelineMilestones.find(
+      (milestone) => !milestone.completedAt && !isOverdue(milestone),
+    ) ?? timelineMilestones[0];
 
   const milestoneSortLabelMap: Record<string, string> = {
     dueDateAsc: "Due date (oldest)",
@@ -238,24 +286,6 @@ export default function ProjectMilestones({
 
   const activeFilterCount = selectedStatuses.length + selectedRisks.length + (sortBy ? 1 : 0);
 
-  const handleGanttRowActivate = (row: GanttRow) => {
-    if (row.type === "milestone") {
-      const milestone = (milestonesQuery.data?.data ?? []).find(
-        (item) => item.id === row.originalId,
-      );
-      if (milestone) {
-        setSelectedMilestone(milestone);
-      }
-      return;
-    }
-
-    if (row.type === "task") {
-      router.push(
-        `/dashboard/projects/${project.id}?tab=board&taskId=${row.originalId}`,
-      );
-    }
-  };
-
   return (
     <div className="space-y-4">
       <PageHeaderStrip
@@ -280,6 +310,14 @@ export default function ProjectMilestones({
                 tone: "destructive",
               }
             : false,
+          inProgress > 0
+            ? {
+                icon: Clock,
+                value: inProgress,
+                label: "active",
+                tone: "running",
+              }
+            : false,
         ]}
         actions={
           <PermissionGuard allowed={permissions.canCreateMilestone}>
@@ -297,6 +335,111 @@ export default function ProjectMilestones({
           </PermissionGuard>
         }
       />
+
+      {timelineMilestones.length > 0 ? (
+        <Card className="overflow-hidden border-border/60">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 border-b bg-muted/20">
+            <div>
+              <CardTitle className="text-base">Timeline overview</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Follow milestone timing, current focus, and task-backed progress in one place.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                <CalendarClock className="mr-1 size-3.5" />
+                {timelineMilestones.length} milestones on track
+              </Badge>
+              {currentTimelineMilestone ? (
+                <Badge variant="outline" className="rounded-full text-[10px] font-semibold uppercase tracking-wide">
+                  <Sparkles className="mr-1 size-3.5" />
+                  Current: {currentTimelineMilestone.name}
+                </Badge>
+              ) : null}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5 p-5">
+            <div className="relative overflow-x-auto pb-2">
+              <div className="absolute left-0 right-0 top-5 h-1 rounded-full bg-primary/10" />
+              <div className="relative flex min-w-[720px] items-start justify-between gap-4">
+                {timelineMilestones.map((milestone) => {
+                  const tone = getMilestoneTone(milestone);
+                  const isCurrent = currentTimelineMilestone?.id === milestone.id;
+                  return (
+                    <button
+                      key={milestone.id}
+                      type="button"
+                      onClick={() => setSelectedMilestone(milestone)}
+                      className="group relative flex w-40 flex-col items-center text-center"
+                    >
+                      <div
+                        className={cn(
+                          "relative z-[1] flex size-10 items-center justify-center rounded-full border-4 border-background shadow-sm transition-transform group-hover:scale-105",
+                          tone.dot,
+                          isCurrent && "ring-4 ring-primary/15",
+                        )}
+                      >
+                        <Flag className="size-4 text-white" />
+                      </div>
+                      <div className="mt-3 space-y-1">
+                        <p
+                          className={cn(
+                            "text-xs font-semibold",
+                            isCurrent ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {milestone.dueDate ? format(new Date(milestone.dueDate), "MMM dd") : "No date"}
+                        </p>
+                        <p className="line-clamp-2 text-sm font-semibold leading-tight">
+                          {milestone.name}
+                        </p>
+                        <Badge variant="outline" className={cn("rounded-full text-[10px] font-semibold", tone.badge)}>
+                          {tone.label}
+                        </Badge>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {timelineMilestones.slice(0, 4).map((milestone) => {
+                const tone = getMilestoneTone(milestone);
+                return (
+                  <button
+                    key={`${milestone.id}-summary`}
+                    type="button"
+                    onClick={() => setSelectedMilestone(milestone)}
+                    className="rounded-xl border bg-card p-4 text-left transition-colors hover:border-primary/30 hover:bg-muted/20"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="line-clamp-1 text-sm font-semibold">{milestone.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {milestone.dueDate
+                            ? format(new Date(milestone.dueDate), "PPP")
+                            : "No due date"}
+                        </p>
+                      </div>
+                      <span className={cn("mt-1 size-2.5 rounded-full", tone.dot)} />
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <ListChecks className="size-3.5" />
+                        {milestone.doneTasks}/{milestone.totalTasks} tasks
+                      </span>
+                      <span className="font-semibold text-foreground">
+                        {Math.round(milestone.progress)}%
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
       <Toolbar
         tabs={
           <Tabs
@@ -318,21 +461,13 @@ export default function ProjectMilestones({
         onSearchChange={setSearch}
         viewMode={view}
         onViewModeChange={setView}
-        showGantt={true}
         filterContent={<FilterMenu categories={filterCategories} />}
         activeFilterCount={activeFilterCount}
         activeFilters={activeFilters}
         onClearAllFilters={activeFilterCount > 0 ? clearAllFilters : undefined}
       />
 
-      {view === "gantt" ? (
-        <ProjectGanttChart
-          data={ganttQuery.data!}
-          isLoading={ganttQuery.isLoading}
-          projectId={project.id}
-          onRowActivate={handleGanttRowActivate}
-        />
-      ) : milestonesQuery.isLoading ? (
+      {milestonesQuery.isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-48 w-full" />
@@ -451,7 +586,7 @@ export default function ProjectMilestones({
         onCreateTask={(value) => {
           closeSelectedMilestone();
           router.push(
-            `/dashboard/projects/${project.id}?tab=board&milestoneId=${value.id}&newTask=1`,
+            `/dashboard/projects/${project.id}?tab=tasks&sub=kanban&milestoneId=${value.id}&newTask=1`,
           );
         }}
       />

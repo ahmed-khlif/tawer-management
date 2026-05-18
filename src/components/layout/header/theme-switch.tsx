@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 export default function ThemeSwitch() {
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -23,8 +23,8 @@ export default function ThemeSwitch() {
       size="icon"
       variant="ghost"
       className="relative"
-      onClick={() => setTheme(theme === "light" ? "dark" : "light")}>
-      {theme === "light" ? <SunIcon /> : <MoonIcon />}
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
+      {resolvedTheme === "dark" ? <MoonIcon /> : <SunIcon />}
       <span className="sr-only">Toggle theme</span>
     </Button>
   );

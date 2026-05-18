@@ -5,8 +5,9 @@ import { ProjectType } from "../../../types/projects";
 
 interface Props {
   project: ProjectType;
+  forcedViewMode?: "list" | "grid";
 }
 
-export default function ProjectTasks({ project }: Props) {
-  return <ProjectTasksList project={project} />;
+export default function ProjectTasks({ project, forcedViewMode }: Props) {
+  return <ProjectTasksList project={project} forcedViewMode={forcedViewMode} />;
 }

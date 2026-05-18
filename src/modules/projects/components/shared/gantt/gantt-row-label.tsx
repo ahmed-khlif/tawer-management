@@ -112,7 +112,7 @@ export default function GanttRowLabel({
       }}
       className={cn(
         "flex cursor-pointer items-center border-b border-border/40 transition-all hover:bg-muted/40",
-        row.type === "sprint" && "bg-muted/20",
+        row.type === "sprint" && "bg-muted/25",
         isActive &&
           "bg-primary/8 shadow-[inset_3px_0_0_0_hsl(var(--primary))] ring-1 ring-primary/10",
         DEPTH_INDENT[row.depth] ?? "pl-3",
@@ -144,13 +144,18 @@ export default function GanttRowLabel({
                 <div className="min-w-0">
                   <div className="flex min-w-0 items-center gap-1.5">
                     {row.keyLabel ? (
-                      <span className="shrink-0 rounded bg-muted px-1 py-0.5 font-mono text-[9px] font-bold tracking-wide text-muted-foreground">
+                      <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-0.5 font-mono text-[9px] font-bold tracking-wide text-primary">
                         {row.keyLabel}
+                      </span>
+                    ) : null}
+                    {row.itemTypeLabel ? (
+                      <span className="shrink-0 rounded-full border border-border/70 bg-background/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-foreground/70">
+                        {row.itemTypeLabel.replace(/_/g, " ")}
                       </span>
                     ) : null}
                     <span
                       className={cn(
-                        "truncate text-[13px] leading-tight",
+                        "truncate text-[13px] leading-tight font-medium",
                         row.type === "sprint" && "font-semibold text-foreground",
                         row.type === "milestone" && "font-medium",
                       )}
@@ -160,12 +165,6 @@ export default function GanttRowLabel({
                   </div>
 
                   <div className="mt-[2px] flex flex-wrap items-center gap-1.5">
-                    {row.itemTypeLabel ? (
-                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground/80">
-                        {row.itemTypeLabel.replace(/_/g, " ")}
-                      </span>
-                    ) : null}
-
                     {typeof row.childTaskCount === "number" && row.childTaskCount > 0 ? (
                       <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                         <ListTree className="size-2.5" />
@@ -232,7 +231,7 @@ export default function GanttRowLabel({
           <Badge
             variant="outline"
             className={cn(
-              "px-1.5 py-0 text-[10px] uppercase",
+              "h-6 rounded-full px-2 py-0 text-[10px] font-semibold uppercase tracking-wide",
               getTaskStatusBadgeClass(row.status),
             )}
           >

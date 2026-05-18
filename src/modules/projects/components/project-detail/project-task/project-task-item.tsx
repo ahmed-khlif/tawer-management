@@ -6,6 +6,7 @@ import {
   projectTaskTypeClasses,
   epicBadgeClasses,
   resolveTaskStatusStyle,
+  resolveTaskStatusDotStyle,
 } from "@/modules/projects/utils/badges/project-task-badges";
 import { resolveAssignee } from "@/modules/projects/utils/resolve-assignee";
 import { ProjectTaskType } from "@/modules/projects/types/project-tasks";
@@ -68,6 +69,7 @@ export default function ProjectTaskItem({
   const priorityKey = task.priority.toLowerCase();
   const typeKey = task.type.toLowerCase();
   const statusBadge = resolveTaskStatusStyle(task.status, customStatusColorByName);
+  const statusDot = resolveTaskStatusDotStyle(task.status, customStatusColorByName);
   const statusLabel = (task.status ?? "").replace(/_/g, " ").toLowerCase();
   const epicBadgeStyle = task.epic?.color
     ? {
@@ -107,7 +109,7 @@ export default function ProjectTaskItem({
       <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
         <Card
           className={cn(
-            "group flex h-full cursor-pointer flex-col transition-all hover:shadow-md hover:-translate-y-px",
+            "group flex h-full cursor-pointer flex-col border-border/70 bg-card transition-all hover:shadow-md hover:-translate-y-px hover:border-primary/25",
             isCompleted ? "opacity-70" : "",
           )}
           onClick={onClick}
@@ -202,9 +204,13 @@ export default function ProjectTaskItem({
                 {visibleAttributes.status && task.status && (
                   <Badge
                     variant="outline"
-                    className={cn("text-[10px] capitalize", statusBadge.className)}
+                    className={cn("text-[10px] capitalize rounded-full px-2 font-semibold tracking-wide", statusBadge.className)}
                     style={statusBadge.style}
                   >
+                    <span
+                      className={cn("mr-1 inline-flex size-1.5 rounded-full", statusDot.className)}
+                      style={statusDot.style}
+                    />
                     {statusLabel}
                   </Badge>
                 )}
@@ -213,7 +219,7 @@ export default function ProjectTaskItem({
                     variant="outline"
                     className={cn(
                       projectTaskPriorityClasses[task.priority.toUpperCase()],
-                      "text-[10px]",
+                      "text-[10px] rounded-full px-2 font-semibold tracking-wide",
                     )}
                   >
                     {t(`priorityLabels.${priorityKey}`)}
@@ -252,7 +258,7 @@ export default function ProjectTaskItem({
     <div ref={setNodeRef} {...attributes} {...listeners} style={style}>
       <Card
         className={cn(
-          "group cursor-pointer transition-all hover:shadow-md",
+          "group cursor-pointer border-border/70 bg-card transition-all hover:shadow-md hover:border-primary/25",
           isCompleted ? "opacity-70" : "",
         )}
         onClick={onClick}
@@ -269,7 +275,7 @@ export default function ProjectTaskItem({
               <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
                 <div className="flex items-center gap-2 min-w-0 w-full">
                   {visibleAttributes.key && (
-                    <span className="text-[10px] font-mono font-bold text-muted-foreground/60 tracking-wider w-14 shrink-0">
+                    <span className="rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[10px] font-mono font-bold text-primary tracking-wider shrink-0">
                       {task.key}
                     </span>
                   )}
@@ -321,7 +327,7 @@ export default function ProjectTaskItem({
                   <Badge
                     variant="outline"
                     className={cn(
-                      "text-[10px] h-5 hidden sm:flex",
+                      "text-[10px] h-5",
                       projectTaskTypeClasses[task.type.toUpperCase()],
                     )}
                   >
@@ -339,9 +345,13 @@ export default function ProjectTaskItem({
                 {visibleAttributes.status && task.status && (
                   <Badge
                     variant="outline"
-                    className={cn("text-[10px] h-5 capitalize", statusBadge.className)}
+                    className={cn("text-[10px] h-6 capitalize rounded-full px-2 font-semibold tracking-wide", statusBadge.className)}
                     style={statusBadge.style}
                   >
+                    <span
+                      className={cn("mr-1 inline-flex size-1.5 rounded-full", statusDot.className)}
+                      style={statusDot.style}
+                    />
                     {statusLabel}
                   </Badge>
                 )}
@@ -350,7 +360,7 @@ export default function ProjectTaskItem({
                     variant="outline"
                     className={cn(
                       projectTaskPriorityClasses[task.priority.toUpperCase()],
-                      "text-[10px] h-5",
+                      "text-[10px] h-6 rounded-full px-2 font-semibold tracking-wide",
                     )}
                   >
                     {t(`priorityLabels.${priorityKey}`)}

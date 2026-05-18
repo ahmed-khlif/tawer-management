@@ -76,6 +76,7 @@ interface Props {
   onAddTask?: () => void;
   isKanbanFullscreen?: boolean;
   onToggleKanbanFullscreen?: () => void;
+  showViewToggle?: boolean;
 }
 
 export default function ProjectTasksToolbar({
@@ -101,6 +102,7 @@ export default function ProjectTasksToolbar({
   onAddTask,
   isKanbanFullscreen = false,
   onToggleKanbanFullscreen,
+  showViewToggle = true,
 }: Props) {
   const tTasks = useTranslations("modules.projects.tasks");
   const { viewMode, setViewMode, visibleAttributes, toggleAttribute } =
@@ -436,8 +438,8 @@ export default function ProjectTasksToolbar({
       onClearAllFilters={
         activeFilterCount > 0 ? clearAdvancedFilters : undefined
       }
-      viewMode={viewMode}
-      onViewModeChange={setViewMode}
+      viewMode={showViewToggle ? viewMode : undefined}
+      onViewModeChange={showViewToggle ? setViewMode : undefined}
       viewListIcon={ListIcon}
       viewGridIcon={SquareKanban}
       leadingSlot={

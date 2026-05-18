@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
-import { CircleDot, BarChart3, Tag, ListChecks, Activity } from "lucide-react";
+import { CircleDot, BarChart3, Tag, ListChecks, Activity, FolderKanban, Sparkles } from "lucide-react";
 import Loading from "@/components/page-loader";
 import Error500 from "@/components/error/500";
 
@@ -32,14 +33,17 @@ import {
 } from "../shared/filter-menu";
 import { PageHeaderStrip } from "../shared/page-header-strip";
 import AdminPageShell from "../shared/admin-page-shell";
+import { EmptyState } from "../shared/empty-state";
+import { retrieveProjects } from "../../services";
 
 type ViewMode = "list" | "grid";
 
 export default function AssignedProjectTasks() {
   const t = useTranslations("modules.projects.tasks");
 
-  const { tasks, tasksAreLoading, tasksError, searchState, statusState, priorityState, typeState } = useAssignedProjectTasks();
+  const { tasks, tasksAreLoading, tasksError, searchState, projectIdState, statusState, priorityState, typeState } = useAssignedProjectTasks();
   const [search, setSearch] = searchState;
+  const [projectId, setProjectId] = projectIdState;
   const [status, setStatus] = statusState;
   const [priority, setPriority] = priorityState;
   const [type, setType] = typeState;
@@ -48,6 +52,12 @@ export default function AssignedProjectTasks() {
   const [selectedTask, setSelectedTask] = React.useState<ProjectTaskType | null>(null);
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
+  const { data: projectsResponse } = useQuery({
+    queryKey: ["assigned-project-task-filter-projects"],
+    queryFn: () => retrieveProjects({ page: 1, limit: 100, sortBy: "createdAtDesc" }),
+    staleTime: 5 * 60 * 1000,
+  });
+  const projects = projectsResponse?.data ?? [];
 
   const handleSelectTask = (task: ProjectTaskType) => {
     setSelectedTask(task);
@@ -61,14 +71,28 @@ export default function AssignedProjectTasks() {
 
   const clearFilters = () => {
     setSearch("");
+    setProjectId(undefined);
     setStatus(undefined);
     setPriority(undefined);
     setType(undefined);
   };
 
-  const activeFilterCount = (status ? 1 : 0) + (priority ? 1 : 0) + (type ? 1 : 0);
+  const activeFilterCount = (projectId ? 1 : 0) + (status ? 1 : 0) + (priority ? 1 : 0) + (type ? 1 : 0);
 
   const filterCategories: FilterMenuCategory[] = [
+    {
+      id: "project",
+      label: "Project",
+      icon: FolderKanban,
+      multiple: false,
+      selectedIds: projectId ? [projectId] : [],
+      onClear: () => setProjectId(undefined),
+      onToggle: (id) => setProjectId(projectId === id ? undefined : id),
+      options: projects.map((project) => ({
+        id: project.id,
+        label: project.name,
+      })),
+    },
     {
       id: "status",
       label: t("filters.status"),
@@ -131,6 +155,14 @@ export default function AssignedProjectTasks() {
 
   const activeFilterChips: ToolbarFilterChip[] = React.useMemo(() => {
     const chips: ToolbarFilterChip[] = [];
+    if (projectId) {
+      chips.push({
+        id: "project",
+        prefix: "Project:",
+        label: projects.find((project) => project.id === projectId)?.name ?? projectId,
+        onRemove: () => setProjectId(undefined),
+      });
+    }
     if (status) {
       chips.push({
         id: "status",
@@ -156,7 +188,7 @@ export default function AssignedProjectTasks() {
       });
     }
     return chips;
-  }, [status, priority, type, setStatus, setPriority, setType, t]);
+  }, [projectId, status, priority, type, projects, setProjectId, setStatus, setPriority, setType, t]);
 
   const textOverrides: ToolbarTextOverrides = {
     filtersButton: t("filters.title", { defaultValue: "Filters" }),
@@ -180,6 +212,13 @@ export default function AssignedProjectTasks() {
             label: "visible tasks",
             tone: "primary",
           },
+          projectId
+            ? {
+                icon: FolderKanban,
+                label: projects.find((project) => project.id === projectId)?.name ?? "Selected project",
+                tone: "info",
+              }
+            : false,
           status
             ? {
                 icon: CircleDot,
@@ -222,14 +261,23 @@ export default function AssignedProjectTasks() {
       ) : tasksAreLoading ? (
         <Loading />
       ) : tasks.length === 0 ? (
-        <div className="flex h-[calc(100vh-16rem)] flex-col items-center justify-center py-12 text-center">
-          <h3 className="text-xl font-medium">{t("upload.form.labels.noTasks")}</h3>
-        </div>
+        <EmptyState
+          message="No assigned project tasks found"
+          description={
+            projectId
+              ? "Try another project or clear the active filters to bring back more assigned work."
+              : "You are all caught up. When project work is assigned to you, it will appear here."
+          }
+          icon={Sparkles}
+          className="min-h-[calc(100vh-18rem)]"
+        />
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {tasks.map((task) => (
-            <ProjectTaskItem key={task.id} task={task} projectType="AGILE" viewMode="grid" onClick={() => handleSelectTask(task)} />
-          ))}
+        <div className="rounded-2xl border border-border/70 bg-card/40 p-3 shadow-sm sm:p-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {tasks.map((task) => (
+              <ProjectTaskItem key={task.id} task={task} projectType="AGILE" viewMode="grid" onClick={() => handleSelectTask(task)} />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="space-y-4 rounded-2xl border border-border/70 bg-card/50 p-3 shadow-sm">

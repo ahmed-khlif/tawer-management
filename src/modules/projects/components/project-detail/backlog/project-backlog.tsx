@@ -30,6 +30,8 @@ import BacklogTaskRow from "./backlog-task-row";
 import TasksBulkActionBar from "./tasks-bulk-action-bar";
 import { EmptyState } from "../../shared/empty-state";
 import { PageHeaderStrip } from "../../shared/page-header-strip";
+import { Toolbar } from "../../shared/toolbar";
+import ProjectTaskItem from "../project-task/project-task-item";
 
 interface ProjectBacklogProps {
   project: ProjectType;
@@ -42,6 +44,7 @@ export function ProjectBacklog({ project, permissions }: ProjectBacklogProps) {
   const { sprints } = useProjectSprints(project.id, { enabled: isAgile });
   const [orderedIds, setOrderedIds] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
 
   useEffect(() => {
     if (backlog.data) {
@@ -183,6 +186,18 @@ export function ProjectBacklog({ project, permissions }: ProjectBacklogProps) {
     <div className="space-y-4 pb-24">
       {headerStrip}
 
+      <Toolbar
+        search=""
+        onSearchChange={() => {}}
+        searchPlaceholder="Backlog search is handled from task filters"
+        viewMode={viewMode}
+        onViewModeChange={(mode) => {
+          if (mode === "list" || mode === "grid") setViewMode(mode);
+        }}
+        className="rounded-xl border border-border/70 bg-card/90 px-3 py-2 shadow-sm sm:px-4"
+        sticky={false}
+      />
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -193,21 +208,37 @@ export function ProjectBacklog({ project, permissions }: ProjectBacklogProps) {
           items={orderedIds}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-2">
-            {orderedTasks.map((task) => (
-              <BacklogTaskRow
-                key={task.id}
-                task={task}
-                selected={selected.has(task.id)}
-                onSelect={handleSelect}
-                onMoveToSprint={(taskId, sprintId) =>
-                  moveToSprint.mutate({ taskId, payload: { sprintId } })
-                }
-                sprints={sprintOptions}
-                canMove={permissions.canMoveTaskToSprint}
-              />
-            ))}
-          </div>
+          {viewMode === "grid" ? (
+            <div className="rounded-2xl border border-border/70 bg-card/40 p-3 shadow-sm sm:p-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {orderedTasks.map((task) => (
+                  <ProjectTaskItem
+                    key={task.id}
+                    task={task}
+                    viewMode="grid"
+                    projectType={project.projectType}
+                    members={project.members}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {orderedTasks.map((task) => (
+                <BacklogTaskRow
+                  key={task.id}
+                  task={task}
+                  selected={selected.has(task.id)}
+                  onSelect={handleSelect}
+                  onMoveToSprint={(taskId, sprintId) =>
+                    moveToSprint.mutate({ taskId, payload: { sprintId } })
+                  }
+                  sprints={sprintOptions}
+                  canMove={permissions.canMoveTaskToSprint}
+                />
+              ))}
+            </div>
+          )}
         </SortableContext>
       </DndContext>
 

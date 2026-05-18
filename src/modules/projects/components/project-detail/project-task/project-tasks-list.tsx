@@ -41,11 +41,12 @@ const NO_STATUS_KEY = "NO_STATUS";
 
 interface Props {
   project: ProjectType;
+  forcedViewMode?: "list" | "grid";
 }
 
-export default function ProjectTasksList({ project }: Props) {
+export default function ProjectTasksList({ project, forcedViewMode }: Props) {
   const tTasks = useTranslations("modules.projects.tasks");
-  const { viewMode } = useProjectTasksStore();
+  const { viewMode, setViewMode } = useProjectTasksStore();
   const kanbanFullscreenRef = React.useRef<HTMLDivElement | null>(null);
 
   const {
@@ -101,6 +102,12 @@ export default function ProjectTasksList({ project }: Props) {
   const requestedTaskQuery = useProjectTask(project.id, requestedTaskId, {
     enabled: !!requestedTaskId,
   });
+
+  React.useEffect(() => {
+    if (forcedViewMode && viewMode !== forcedViewMode) {
+      setViewMode(forcedViewMode);
+    }
+  }, [forcedViewMode, setViewMode, viewMode]);
 
   React.useEffect(() => {
     const onFullscreenChange = () => {
@@ -834,6 +841,7 @@ export default function ProjectTasksList({ project }: Props) {
             onAddTask={canAddTask ? () => handleOpenUploadSheet() : undefined}
             isKanbanFullscreen={isKanbanFullscreen}
             onToggleKanbanFullscreen={handleToggleKanbanFullscreen}
+            showViewToggle={!forcedViewMode}
           />
 
           {tasksAreLoading ? (
@@ -962,7 +970,7 @@ export default function ProjectTasksList({ project }: Props) {
             isOpen={isDetailSheetOpen}
             onClose={() => { setIsDetailSheetOpen(false); setSelectedTask(null); }}
             task={selectedTask}
-            onEditClick={() => handleOpenUploadSheet(selectedTask as ProjectTaskType)}
+              onEditClick={(task) => handleOpenUploadSheet((task ?? selectedTask) as ProjectTaskType)}
             projectId={project.id}
             canEdit={selectedTask ? (canEditAnyTask || (canEditOwnTask && isOwnTask(selectedTask))) : false}
             canDelete={selectedTask ? (canDeleteAnyTask || (canDeleteOwnTask && isOwnTask(selectedTask))) : false}

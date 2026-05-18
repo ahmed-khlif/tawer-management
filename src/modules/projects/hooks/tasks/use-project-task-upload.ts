@@ -141,11 +141,31 @@ export default function useProjectTaskUpload({ projectId, task, onSuccess }: Par
       form.reset();
       queryClient.invalidateQueries({ queryKey: ["project-tasks", projectId] });
       queryClient.invalidateQueries({ queryKey: ["project-backlog", projectId] });
+      if (task?.id) {
+        queryClient.invalidateQueries({ queryKey: ["project-task", projectId, task.id] });
+      }
 
       onSuccess?.(responseRisk ?? undefined);
     } catch (err) {
-      toast.error("Failed to save project task");
-      setError("An error occurred while saving the task.");
+      const responseMessage =
+        (err as any)?.response?.data?.message ||
+        (Array.isArray((err as any)?.response?.data?.details)
+          ? (err as any).response.data.details
+              .map((detail: any) =>
+                detail?.constraints
+                  ? Object.values(detail.constraints).join(", ")
+                  : null,
+              )
+              .filter(Boolean)
+              .join(" • ")
+          : null);
+      const message =
+        typeof responseMessage === "string" && responseMessage.trim().length > 0
+          ? responseMessage
+          : "An error occurred while saving the task.";
+
+      toast.error(message);
+      setError(message);
     } finally {
       setIsPending(false);
     }

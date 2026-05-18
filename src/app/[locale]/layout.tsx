@@ -35,7 +35,7 @@ export default async function RootLayout({
         className={cn("bg-background group/layout font-sans", fontVariables)}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
+          defaultTheme="system"
           enableSystem
           disableTransitionOnChange>
           <IntlClientProvider locale={locale} messages={messages}>

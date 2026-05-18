@@ -13,6 +13,7 @@ import {
   ArrowUpDown,
 } from "lucide-react";
 import { PageHeaderStrip } from "@/modules/projects/components/shared/page-header-strip";
+import { EmptyState } from "@/modules/projects/components/shared/empty-state";
 import {
   Toolbar,
   type ToolbarFilterChip,
@@ -49,6 +50,7 @@ import { priorityDotColors } from "../utils/enum";
 import TaskItem from "./task-item";
 import useTasksOrdersUpdates from "../hooks/tasks/use-tasks-orders-updates";
 import Error500 from "@/components/error/500";
+import { Sparkles } from "lucide-react";
 
 interface TodoListProps {
   activeTab: FilterTab;
@@ -277,13 +279,23 @@ export default function TaskList({ activeTab, onSelectTask, onAddTodoClick }: To
           {tasksAreLoading ? (
             <Loading />
           ) : personalTasks.length === 0 ? (
-            <div className="flex h-[calc(100vh-12rem)] flex-col items-center justify-center py-12 text-center">
-              <h3 className="text-xl font-medium">{t("upload.form.labels.noTasks")}</h3>
-            </div>
+            <EmptyState
+              message="No personal tasks yet"
+              description="Capture your next priority, reminder, or follow-up here so your personal queue stays focused and easier to act on."
+              icon={Sparkles}
+              action={
+                <Button size="sm" onClick={onAddTodoClick} className="gap-1.5">
+                  <Plus className="size-4" />
+                  {t("addTask")}
+                </Button>
+              }
+            />
           ) : viewMode === "grid" ? (
             <DndContext sensors={sensors} collisionDetection={closestCenter}
               onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
-              {dndContent}
+              <div className="rounded-2xl border border-border/70 bg-card/35 p-3 shadow-sm sm:p-4">
+                {dndContent}
+              </div>
               <DragOverlay>
                 {activeId ? <TaskItem task={tasks?.find((t) => t.id === activeId) as TaskType} viewMode="grid" isDraggingOverlay /> : null}
               </DragOverlay>
@@ -292,7 +304,9 @@ export default function TaskList({ activeTab, onSelectTask, onAddTodoClick }: To
             <DndContext sensors={sensors} collisionDetection={closestCenter}
               onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}
               modifiers={[restrictToVerticalAxis]}>
-              {dndContent}
+              <div className="rounded-2xl border border-border/70 bg-card/55 p-3 shadow-sm">
+                {dndContent}
+              </div>
               <DragOverlay>
                 {activeId ? <TaskItem task={tasks?.find((t) => t.id === activeId) as TaskType} viewMode="list" isDraggingOverlay /> : null}
               </DragOverlay>

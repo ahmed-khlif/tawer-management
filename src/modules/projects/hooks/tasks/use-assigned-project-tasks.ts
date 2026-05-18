@@ -5,13 +5,14 @@ import retrieveAssignedProjectTasks from "../../services/extraction/assigned-pro
 
 export default function useAssignedProjectTasks() {
   const [search, setSearch] = useState("");
+  const [projectId, setProjectId] = useState<string | undefined>(undefined);
   const [status, setStatus] = useState<string | undefined>(undefined);
   const [priority, setPriority] = useState<string | undefined>(undefined);
   const [type, setType] = useState<string | undefined>(undefined);
 
   const { data, isLoading, isError } = useQuery<ProjectTaskType[]>({
-    queryKey: ["assigned-project-tasks", search, status, priority, type],
-    queryFn: () => retrieveAssignedProjectTasks({ search, status, priority, type }),
+    queryKey: ["assigned-project-tasks", search, projectId, status, priority, type],
+    queryFn: () => retrieveAssignedProjectTasks({ search, projectId, status, priority, type }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
@@ -21,6 +22,7 @@ export default function useAssignedProjectTasks() {
     tasksAreLoading: isLoading,
     tasksError: isError,
     searchState: [search, setSearch] as [string, (s: string) => void],
+    projectIdState: [projectId, setProjectId] as [string | undefined, (s: string | undefined) => void],
     statusState: [status, setStatus] as [string | undefined, (s: string | undefined) => void],
     priorityState: [priority, setPriority] as [string | undefined, (s: string | undefined) => void],
     typeState: [type, setType] as [string | undefined, (s: string | undefined) => void],

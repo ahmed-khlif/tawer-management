@@ -25,10 +25,18 @@ export default function GanttBarElement({
   onClick,
 }: GanttBarProps) {
   const barPadding = (rowHeight - getBarHeight(row)) / 2;
-  const inlineThreshold = row.type === "task" ? 132 : 92;
+  const inlineThreshold = row.type === "task" ? 136 : 120;
   const shouldRenderInlineLabel = bar.width >= inlineThreshold;
   const shouldRenderExternalLabel =
-    row.type === "epic" && !shouldRenderInlineLabel;
+    (row.type === "epic" || row.type === "task") && !shouldRenderInlineLabel;
+  const showInlineTypePill =
+    !!row.itemTypeLabel &&
+    bar.width >=
+      (row.type === "task" ? 208 : row.type === "epic" ? 168 : 200);
+  const externalLabelText =
+    row.type === "task" && row.keyLabel
+      ? `${row.keyLabel} - ${row.label}`
+      : row.label;
 
   if (row.type === "milestone") {
     return (
@@ -61,13 +69,16 @@ export default function GanttBarElement({
             <div className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2">
               <span
                 className={cn(
-                  "inline-flex max-w-[240px] truncate rounded-md border px-2 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm",
+                  "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium text-foreground shadow-sm backdrop-blur-sm",
                   isActive
                     ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
                     : "border-border/60 bg-background/90",
                 )}
               >
-                {row.label}
+                <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                  Milestone
+                </span>
+                <span className="max-w-[220px] truncate">{row.label}</span>
               </span>
             </div>
           </div>
@@ -104,7 +115,7 @@ export default function GanttBarElement({
         >
           <div
             className={cn(
-              "relative h-full w-full overflow-hidden border-y border-r transition-all duration-200 group-hover:brightness-95 group-hover:shadow-md",
+              "relative h-full w-full overflow-hidden border-y border-r shadow-sm transition-all duration-200 group-hover:brightness-95 group-hover:shadow-md",
               isSprint && "rounded-md border-border/50",
               isEpic && "rounded-md border-border/40",
               !isSprint && !isEpic && "rounded-sm border-border/30",
@@ -135,8 +146,13 @@ export default function GanttBarElement({
             {shouldRenderInlineLabel ? (
               <div className="relative z-[1] flex h-full items-center gap-1 px-2">
                 {row.keyLabel ? (
-                  <span className="shrink-0 rounded bg-background/70 px-1 py-0.5 font-mono text-[9px] font-bold text-foreground/75">
+                  <span className="shrink-0 rounded-full bg-background/80 px-1.5 py-0.5 font-mono text-[9px] font-bold text-foreground/80 shadow-sm">
                     {row.keyLabel}
+                  </span>
+                ) : null}
+                {showInlineTypePill ? (
+                  <span className="shrink-0 rounded-full border border-border/60 bg-background/75 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {row.itemTypeLabel?.replace(/_/g, " ")}
                   </span>
                 ) : null}
                 <span
@@ -163,13 +179,23 @@ export default function GanttBarElement({
             <div className="pointer-events-none absolute left-[calc(100%+8px)] top-1/2 z-[3] -translate-y-1/2">
               <span
                 className={cn(
-                  "inline-flex max-w-[320px] truncate rounded-md border px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-md backdrop-blur-sm",
+                  "inline-flex max-w-[320px] items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-md backdrop-blur-sm",
                   isActive
                     ? "border-primary/50 bg-primary/10 ring-2 ring-primary/15"
                     : "border-border/70 bg-background/96",
                 )}
               >
-                {row.keyLabel ? `${row.keyLabel} · ${row.label}` : row.label}
+                {row.type === "task" && row.keyLabel ? (
+                  <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-wide text-primary">
+                    {row.keyLabel}
+                  </span>
+                ) : null}
+                {row.itemTypeLabel ? (
+                  <span className="shrink-0 rounded-full border border-border/60 bg-background/75 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {row.itemTypeLabel.replace(/_/g, " ")}
+                  </span>
+                ) : null}
+                <span className="truncate">{externalLabelText}</span>
               </span>
             </div>
           ) : null}
@@ -183,8 +209,7 @@ export default function GanttBarElement({
           {row.startDate && row.endDate ? (
             <span className="inline-flex items-center gap-1">
               <CalendarRange className="size-3" />
-              {row.startDate.toLocaleDateString()} -{" "}
-              {row.endDate.toLocaleDateString()}
+              {row.startDate.toLocaleDateString()} - {row.endDate.toLocaleDateString()}
             </span>
           ) : null}
         </div>
@@ -225,14 +250,14 @@ function getBarHeight(row: GanttRow): number {
 function getBarStyles(row: GanttRow): React.CSSProperties {
   if (row.type === "sprint") {
     return {
-      backgroundColor: "var(--pm-sprint-running-bg, hsl(var(--primary) / 0.1))",
+      backgroundColor: "var(--pm-sprint-running-bg, hsl(var(--primary) / 0.16))",
       borderLeft: "3px solid var(--pm-sprint-running-dot, hsl(var(--primary)))",
     };
   }
 
   if (row.type === "epic" && row.color) {
     return {
-      backgroundColor: `${row.color}20`,
+      backgroundColor: `${row.color}2a`,
       borderLeft: `3px solid ${row.color}`,
     };
   }
@@ -252,5 +277,6 @@ function getBarStyles(row: GanttRow): React.CSSProperties {
   return {
     backgroundColor: `var(--pm-task-${statusKey}-bg, var(--pm-task-backlog-bg))`,
     borderLeft: `2px solid var(--pm-task-${statusKey}-dot, var(--pm-task-backlog-dot))`,
+    opacity: 0.98,
   };
 }

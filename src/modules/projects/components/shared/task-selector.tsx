@@ -51,7 +51,7 @@ export function TaskSelector({
         limit: 100,
         sprintId,
       }),
-    enabled: !!projectId && !!sprintId,
+    enabled: !!projectId && !disabled,
   });
 
   const availableTasks = React.useMemo(
@@ -90,7 +90,7 @@ export function TaskSelector({
                 ? `${selectedTasks.length} tasks selected`
                 : sprintId
                   ? placeholder
-                  : "Choose a sprint first"}
+                  : placeholder}
             </span>
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -102,7 +102,7 @@ export function TaskSelector({
               <CommandEmpty>
                 {sprintId
                   ? "No eligible sprint tasks found."
-                  : "Choose a sprint first."}
+                  : "No project tasks found."}
               </CommandEmpty>
               <CommandGroup>
                 {availableTasks.map((task) => (
