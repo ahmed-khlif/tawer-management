@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { resolveAssetUrl } from "@/lib/resolve-asset-url";
 import useTaskAttachments from "@/modules/projects/hooks/tasks/use-task-attachments";
 import { ProjectPermissions } from "@/modules/projects/hooks/permissions/use-project-permissions";
 import { AttachmentEmpty } from "../../shared/attachment-empty";
@@ -45,9 +46,10 @@ function normalize(
       };
     }
     const url = attachment.url ?? attachment.attachment ?? "";
+    const resolvedUrl = resolveAssetUrl(url);
     return {
       id: attachment.id,
-      url,
+      url: resolvedUrl,
       name:
         attachment.name ?? decodeName(url.split("/").pop() || "Untitled"),
     };

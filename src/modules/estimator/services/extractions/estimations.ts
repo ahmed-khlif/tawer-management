@@ -19,7 +19,7 @@ export default async function loadEstimationsFromBackend(): Promise<EstimationLo
 
     if (axiosError.response?.status === 401) {
       const res = await refreshToken(() => loadEstimationsFromBackend())
-      if (!res) return null
+      if (res == null) return null
       return res
     }
 

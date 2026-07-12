@@ -10,7 +10,7 @@ interface Params {
   id?: string;
 }
 
-export default async function uploadUserOnServerSide({ user, id = "" }: Params) {
+export default async function uploadUserOnServerSide({ user, id = "" }: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -29,7 +29,7 @@ export default async function uploadUserOnServerSide({ user, id = "" }: Params) 
     if (axiosError.response?.status === 401) {
       const res = await refreshToken(() => uploadUserOnServerSide({ user }));
 
-      if (!res) throw new CustomError("Unauthorized", 401);
+      if (res == null) throw new CustomError("Unauthorized", 401);
       return res;
     } else if (axiosError.response?.status === 400) {
       if (axiosError.response?.data.code === "P2000") {

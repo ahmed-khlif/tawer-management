@@ -7,6 +7,7 @@ import { differenceInMinutes, format, getMinutes, isPast } from "date-fns";
 
 import { getBorderRadiusClasses, getEventColorClasses, type CalendarEventType } from ".";
 import { cn } from "@/lib/utils";
+import { buildOpenStreetMapUrl } from "../../utils/location";
 
 // Using date-fns format with custom formatting:
 // 'h' - hours (1-12)
@@ -110,6 +111,10 @@ export function EventItem({
   onTouchStart
 }: EventItemProps) {
   const eventColor = event.color;
+  const eventMapUrl =
+    typeof event.latitude === "number" && typeof event.longitude === "number"
+      ? buildOpenStreetMapUrl(event.latitude, event.longitude)
+      : null;
 
   // Use the provided currentTime (for dragging) or the event's actual time
   const displayStart = useMemo(() => {
@@ -239,6 +244,17 @@ export function EventItem({
         )}
       </div>
       {event.description && <div className="my-1 text-xs opacity-90">{event.description}</div>}
+      {eventMapUrl ? (
+        <a
+          href={eventMapUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 text-xs font-medium underline underline-offset-4"
+          onClick={(clickEvent) => clickEvent.stopPropagation()}
+        >
+          Open in map
+        </a>
+      ) : null}
     </button>
   );
 }

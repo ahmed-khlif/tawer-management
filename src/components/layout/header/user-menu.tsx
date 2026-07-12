@@ -36,7 +36,7 @@ export default function UserMenu() {
 
   const onClickLogout = async () => {
     await checkOut();
-    logout();
+    await logout();
     router.push("/login");
   };
 

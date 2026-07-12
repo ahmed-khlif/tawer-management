@@ -26,7 +26,7 @@ export default function useServices({
   const [serversIds, setServersIds] = useState<string[]>([]);
   const [servicesStatuses, setServicesStatuses] = useState<ServiceStatusType[]>([]);
 
-  const { data, isLoading, isError } = useQuery<{
+  const { data, isLoading, isError, isFetching } = useQuery<{
     data: ServiceType[]
     pagination: PaginationType
   } | null>({
@@ -44,6 +44,7 @@ export default function useServices({
     placeholderData: (prev) => prev,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchInterval: 60000,
   })
 
   // pages update once data is fetched
@@ -63,6 +64,7 @@ export default function useServices({
     page,
     records,
     pagesNumber,
+    isRefreshing: isFetching && !isLoading,
     setServersIds,
     serversIds,
     search, setSearch,

@@ -10,7 +10,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { getLocale, getMessages } from "next-intl/server";
 import IntlClientProvider from "@/i18n/intl-client-provider";
 import ReactQueryProvider from "@/utils/providers/react-query-provider";
-import MockToggle from "@/lib/mock-toggle"; // REMOVE THIS LINE FOR PROD
 
 export const metadata = {
   title: 'Tawer MGT',
@@ -50,7 +49,6 @@ export default async function RootLayout({
                   shadow-sm="none"
                 />
                 {process.env.NODE_ENV === "production" ? <GoogleAnalyticsInit /> : null}
-                <MockToggle />{/* REMOVE THIS LINE FOR PROD */}
               </ActiveThemeProvider>
             </ReactQueryProvider>
           </IntlClientProvider>

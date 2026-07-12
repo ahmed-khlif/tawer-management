@@ -40,7 +40,7 @@ export default async function retrieveProjects(params: Params): Promise<{ data: 
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveProjects(params));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     throw error;
   }

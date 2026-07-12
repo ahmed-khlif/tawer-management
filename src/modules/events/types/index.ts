@@ -14,11 +14,13 @@ export interface CalendarEventRequestType {
   }[];
   toAllUsers?: boolean;
   participantsIds?: string[];
-  projectId?: string;
+  projectId?: string | null;
   startTime: string;
   endTime: string;
   color?: EventColorOnBackendSide;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   type: EventTypeOnBackendSide;
 }
 
@@ -27,6 +29,8 @@ export interface CalendarEventType {
   title: string;
   description?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   color?: EventColor;
 
   startDate: Date;
@@ -46,6 +50,8 @@ export interface CalendarEventInResponseType {
   title: string;
   description?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   color: EventColorOnBackendSide;
 
   startTime: string;
@@ -55,4 +61,10 @@ export interface CalendarEventInResponseType {
   projectId?: string;
   toAllUsers?: boolean;
   createdById: string;
+}
+
+export interface EventLocationSuggestionType {
+  label: string;
+  latitude: number;
+  longitude: number;
 }

@@ -17,7 +17,7 @@ interface Params {
   isManager?: boolean;
 }
 
-export default async function retreiveUserActivity({ isManager = true, ...params }: Params) {
+export default async function retreiveUserActivity({ isManager = true, ...params }: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -48,7 +48,7 @@ export default async function retreiveUserActivity({ isManager = true, ...params
       const res = await refreshToken(() => retreiveUserActivity({ isManager, ...params }));
 
       //unauthorized user error is already handled by the user hook
-      if (!res) return null;
+      if (res == null) return null;
 
       return res;
     }

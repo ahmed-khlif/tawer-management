@@ -15,6 +15,8 @@ export const getEventFormSchema = ({ t }: Params) =>
       title: z.string().min(1, t("title.required")),
       description: z.string().optional(),
       location: z.string().optional(),
+      latitude: z.number().optional(),
+      longitude: z.number().optional(),
 
       participantsId: z.array(z.string()).optional(),
       projectId: z.string().optional(),
@@ -38,4 +40,4 @@ export const getEventFormSchema = ({ t }: Params) =>
       }
     });
 
-export type EventFormSchema = z.infer<ReturnType<typeof getEventFormSchema>>;
+export type EventFormSchema = z.input<ReturnType<typeof getEventFormSchema>>;

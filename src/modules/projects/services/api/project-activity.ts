@@ -36,7 +36,7 @@ export async function fetchProjectActivity(
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => fetchProjectActivity(filters));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     throw error;
   }

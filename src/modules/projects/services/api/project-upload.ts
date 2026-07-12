@@ -23,7 +23,9 @@ export async function uploadProject(
     return res?.data as CreatedProjectAiResponse | undefined;
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() => uploadProject(data, id));
+      const retried = await refreshToken(() => uploadProject(data, id));
+      if (retried == null) throw error;
+      return retried;
     }
     throw error;
   }

@@ -3,10 +3,10 @@ import {
   Item,
   ItemActions,
   ItemContent,
-  ItemDescription,
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
+import { cn } from "@/lib/utils";
 
 interface ListCardProps {
   avatar: React.ReactNode;
@@ -32,12 +32,18 @@ export function ListCard({ avatar, primary, secondary, badge, actions }: ListCar
       <ItemContent className="min-w-0">
         <ItemTitle className="truncate">{primary}</ItemTitle>
         {secondary ? (
-          <ItemDescription className="text-xs text-muted-foreground">
+          <div
+            className={cn(
+              "text-muted-foreground line-clamp-2 text-sm leading-normal font-normal text-balance",
+              "[&>a:hover]:text-primary [&>a]:underline [&>a]:underline-offset-4",
+              "text-xs text-muted-foreground",
+            )}
+          >
             {secondary}
-          </ItemDescription>
+          </div>
         ) : null}
       </ItemContent>
-      <ItemActions className="flex-wrap justify-end gap-1.5">
+      <ItemActions className="min-w-0 flex-wrap justify-end gap-1.5">
         {badge}
         {actions}
       </ItemActions>

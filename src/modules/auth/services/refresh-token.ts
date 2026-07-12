@@ -1,28 +1,26 @@
-import { POST } from "@/lib/http-methods";
-import { AxiosHeaders, AxiosResponse } from "axios";
-import extractJWTokens from "../utils/jwt/extract-tokens";
+import { requestAccessTokenRefresh } from "@/lib/http-methods";
+import useUserStore from "../store/user-store";
 
-export async function refreshToken(onSuccess: () => any) {
-  const { refresh } = extractJWTokens();
-  const headers = {} as AxiosHeaders;
+export async function refreshToken<T>(onSuccess: () => Promise<T> | T): Promise<Awaited<T> | null> {
+  const accessToken = await requestAccessTokenRefresh({ redirectOnFailure: false });
 
-  if (!refresh) {
+  if (!accessToken) {
+    useUserStore.getState().clearSession();
     return null;
   }
 
   try {
-    const res: AxiosResponse = await POST(`/tokens/refresh`, headers, {
-      token: refresh,
-    });
-
-    if (res.data?.access) {
-      localStorage.setItem("access", res.data.access);
-    }
-
-    return onSuccess();
+    return await onSuccess();
   } catch {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+    useUserStore.getState().clearSession();
     return null;
+  }
+}
+
+export async function initializeAuthSession() {
+  try {
+    await requestAccessTokenRefresh({ redirectOnFailure: false });
+  } finally {
+    useUserStore.getState().setSessionReady(true);
   }
 }

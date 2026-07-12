@@ -4,6 +4,8 @@ import useUser from "@/modules/auth/hooks/users/use-user";
 import { useRouter } from "@/i18n/navigation";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import useUserStore from "@/modules/auth/store/user-store";
+import { initializeAuthSession } from "@/modules/auth/services/refresh-token";
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
@@ -18,9 +20,16 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   const { user, isLoading } = useUser();
+  const sessionReady = useUserStore((store) => store.sessionReady);
   const router = useRouter();
   const pathname = usePathname();
   const isOnboardingRoute = pathname?.includes("/dashboard/onboarding");
+
+  useEffect(() => {
+    if (!sessionReady) {
+      initializeAuthSession();
+    }
+  }, [sessionReady]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -28,7 +37,7 @@ export default function AuthLayout({
     }
   }, [isLoading, user, router]);
 
-  if (isLoading) {
+  if (!sessionReady || isLoading) {
     return <Loading />;
   }
 

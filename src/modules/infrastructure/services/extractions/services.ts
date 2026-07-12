@@ -24,7 +24,7 @@ export default async function retrieveServicesFromServerSide({
   serversIds,
   statuses,
   locale,
-}: Params) {
+}: Params): Promise<any> {
   const { access } = extractJWTokens()
   const headers = {
     Authorization: `Bearer ${access}`,
@@ -60,7 +60,7 @@ export default async function retrieveServicesFromServerSide({
         }),
       )
 
-      if (!res) return null
+      if (res == null) return null
       return res
     }
 

@@ -10,7 +10,9 @@ export async function deleteSprint(projectId: string, sprintId: string): Promise
     await DELETE(`/projects/sprints/${sprintId}`, headers);
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() => deleteSprint(projectId, sprintId));
+      const retried = await refreshToken(() => deleteSprint(projectId, sprintId));
+      if (retried == null) throw error;
+      return;
     }
     throw error;
   }

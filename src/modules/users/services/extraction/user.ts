@@ -9,7 +9,7 @@ interface Params {
   id: string;
 }
 
-export default async function retreiveUserInfo(params: Params) {
+export default async function retreiveUserInfo(params: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -30,7 +30,7 @@ export default async function retreiveUserInfo(params: Params) {
       const res = await refreshToken(() => retreiveUserInfo(params));
 
       //unauthorized user error is already handled by the user hook
-      if (!res) return null;
+      if (res == null) return null;
 
       return res;
     }

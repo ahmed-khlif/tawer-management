@@ -12,7 +12,7 @@ interface Params {
   id: string;
 }
 
-export default async function retrieveTaskFromServerSide({ id }: Params) {
+export default async function retrieveTaskFromServerSide({ id }: Params): Promise<any> {
   if (USE_MOCK()) {
     const found = (mockTasks as TaskDetailsInResponseType[]).find(t => t.id === id);
     return found ? castToTaskDetailsType(found) : null;
@@ -36,7 +36,7 @@ export default async function retrieveTaskFromServerSide({ id }: Params) {
         retrieveTaskFromServerSide({ id })
       );
 
-      if (!res) return null;
+      if (res == null) return null;
       return res;
     }
 

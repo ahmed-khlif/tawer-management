@@ -36,7 +36,7 @@ export async function deleteElementOnServerSide(
       const res = await refreshToken(() => deleteElementOnServerSide(type, elementId));
 
       //unauthorized user error is already handled by the user hook
-      if (!res) throw new CustomError("Unauthorized!", 401);
+      if (res == null) throw new CustomError("Unauthorized!", 401);
 
       return res;
     }

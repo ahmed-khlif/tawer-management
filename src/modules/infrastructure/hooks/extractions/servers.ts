@@ -23,7 +23,7 @@ export default function useServers({ limit = 100, queryKeys = [], paginationAffe
   const [search, setSearch] = useState<string>("");
   const [serverStatuses, setServerStatuses] = useState<ServerStatusType[]>([])
 
-  const { data, isLoading, isError } = useQuery<{
+  const { data, isLoading, isError, isFetching } = useQuery<{
     data: ServerType[]
     pagination: PaginationType
   } | null>({
@@ -41,6 +41,7 @@ export default function useServers({ limit = 100, queryKeys = [], paginationAffe
     placeholderData: (prev) => prev,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchInterval: 60000,
   })
 
   // pages update once data is fetched
@@ -60,6 +61,7 @@ export default function useServers({ limit = 100, queryKeys = [], paginationAffe
     page,
     records,
     pagesNumber,
+    isRefreshing: isFetching && !isLoading,
     search,
     setSearch,
     serverStatuses,

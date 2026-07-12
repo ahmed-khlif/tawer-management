@@ -372,8 +372,8 @@ export default function MilestoneDetailSheet({
                        </Badge>
                      </div>
                      <ul className="space-y-2 text-sm text-muted-foreground">
-                       {milestone.aiRecommendations.map((note) => (
-                         <li key={note} className="flex items-start gap-2">
+                       {milestone.aiRecommendations.map((note, index) => (
+                         <li key={`${note}-${index}`} className="flex items-start gap-2">
                            <ListChecks className="mt-0.5 size-4 shrink-0 text-primary" />
                            <span>{note}</span>
                          </li>

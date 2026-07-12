@@ -23,9 +23,11 @@ export async function addProjectTaskComment(
     });
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() =>
+      const retried = await refreshToken(() =>
         addProjectTaskComment(projectId, taskId, content, mentions),
       );
+      if (retried == null) throw error;
+      return;
     }
     throw error;
   }
@@ -45,9 +47,11 @@ export async function updateProjectTaskComment(
     );
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() =>
+      const retried = await refreshToken(() =>
         updateProjectTaskComment(projectId, taskId, commentId, content),
       );
+      if (retried == null) throw error;
+      return;
     }
     throw error;
   }
@@ -62,9 +66,11 @@ export async function deleteProjectTaskComment(
     await DELETE(API.TASKS.COMMENT(projectId, taskId, commentId), getHeaders());
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() =>
+      const retried = await refreshToken(() =>
         deleteProjectTaskComment(projectId, taskId, commentId),
       );
+      if (retried == null) throw error;
+      return;
     }
     throw error;
   }
@@ -79,9 +85,11 @@ export async function likeProjectTaskComment(
     await POST(API.TASKS.LIKE_COMMENT(projectId, taskId, commentId), getHeaders(), {});
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() =>
+      const retried = await refreshToken(() =>
         likeProjectTaskComment(projectId, taskId, commentId),
       );
+      if (retried == null) throw error;
+      return;
     }
     throw error;
   }

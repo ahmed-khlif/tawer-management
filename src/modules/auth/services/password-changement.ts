@@ -34,6 +34,9 @@ export async function changePassword(data: {
     //unauthorzied user
     if (axiosError.response?.status === 401) {
       const res = await refreshToken(() => changePassword(data));
+      if (res == null) {
+        return { status: 401, ok: false, error: "Unauthorized", code: "UNAUTHORIZED" };
+      }
       return res;
     }
     //invalid password

@@ -194,7 +194,7 @@ export function MembersListCard({
                         })()}
                       </div>
                       
-                      <div className="flex flex-wrap items-center gap-1 justify-end ml-auto">
+                      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1">
                         <Badge
                           variant="outline"
                           className={cn(
@@ -238,14 +238,14 @@ export function MembersListCard({
                             key={role}
                             variant="outline"
                             className={cn(
-                              "inline-flex items-center gap-1 text-[10px] h-5 font-bold uppercase tracking-wider",
+                              "inline-flex h-5 max-w-[170px] items-center gap-1 text-[10px] font-bold uppercase tracking-wider",
                               userRoleBadgeClass(),
                             )}
                             style={userRoleStyle(role)}
-                            title={role}
+                            title={formatUserRoleLabel(role)}
                           >
                             <span className={userRoleDotClass()} aria-hidden />
-                            {formatUserRoleLabel(role)}
+                            <span className="truncate">{formatUserRoleLabel(role)}</span>
                           </Badge>
                         ))}
                       </div>

@@ -44,10 +44,13 @@ export function SprintAiCapacity({ projectId, sprintId }: SprintAiCapacityProps)
         {query.isLoading ? (
           <Skeleton className="h-20 w-full" />
         ) : query.error ? (
-          <ErrorBanner error="Unable to load AI capacity signal." onRetry={() => void query.refetch()} />
+          <ErrorBanner
+            error="Unable to load AI capacity signal."
+            onRetry={() => void query.refetch()}
+          />
         ) : !query.data ? (
           <p className="text-sm text-muted-foreground">
-            No capacity signal available yet — try again after assigning a few tasks.
+            No capacity signal available yet - try again after assigning a few tasks.
           </p>
         ) : (
           <>
@@ -70,20 +73,26 @@ export function SprintAiCapacity({ projectId, sprintId }: SprintAiCapacityProps)
             <Progress value={Math.min(100, Math.round(query.data.utilizationPercent))} />
             {query.data.recommendations.length ? (
               <ul className="space-y-1 text-sm">
-                {query.data.recommendations.map((item) => (
-                  <li key={item} className="text-muted-foreground">
-                    • {item}
+                {query.data.recommendations.map((item, index) => (
+                  <li key={`${item}-${index}`} className="text-muted-foreground">
+                    - {item}
                   </li>
                 ))}
               </ul>
             ) : null}
             {query.data.relatedAnomalies.length ? (
               <div className="space-y-1">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Anomalies</p>
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Anomalies
+                </p>
                 <ul className="space-y-1 text-sm">
-                  {query.data.relatedAnomalies.map((anomaly) => (
-                    <li key={anomaly.code} className="text-muted-foreground">
-                      <span className="font-medium">[{anomaly.severity}]</span> {anomaly.message}
+                  {query.data.relatedAnomalies.map((anomaly, index) => (
+                    <li
+                      key={`${anomaly.code}-${index}`}
+                      className="text-muted-foreground"
+                    >
+                      <span className="font-medium">[{anomaly.severity}]</span>{" "}
+                      {anomaly.message}
                     </li>
                   ))}
                 </ul>

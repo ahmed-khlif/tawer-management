@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { resolveAssetUrl } from "@/lib/resolve-asset-url";
 import { useSprintAttachments } from "@/modules/projects/hooks/sprints/use-sprint-attachments";
 import { AttachmentEmpty } from "../../shared/attachment-empty";
 import {
@@ -145,17 +146,16 @@ export function SprintAttachmentsSection({
             {attachments.map((attachment) => {
               const name = fileNameFromUrl(attachment.attachment);
               const kind = detectAttachmentKind(name);
+              const resolvedUrl = resolveAssetUrl(attachment.attachment);
               return (
                 <AttachmentRow
                   key={attachment.id}
                   name={name}
                   kind={kind}
-                  previewUrl={kind === "image" ? attachment.attachment : undefined}
+                  previewUrl={kind === "image" ? resolvedUrl : undefined}
                   meta={format(new Date(attachment.createdAt), "MMM d, yyyy")}
-                  onView={() =>
-                    window.open(attachment.attachment, "_blank", "noreferrer")
-                  }
-                  onDownload={() => downloadUrl(attachment.attachment, name)}
+                  onView={() => window.open(resolvedUrl, "_blank", "noreferrer")}
+                  onDownload={() => downloadUrl(resolvedUrl, name)}
                   onRemove={
                     canManage
                       ? () => deleteAttachment.mutate(attachment.id)

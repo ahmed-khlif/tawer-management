@@ -4,7 +4,6 @@ import { AxiosError, AxiosHeaders } from "axios";
 type AuthResponse = {
   status: number;
   ok: boolean;
-  data?: { rt: string; at: string };
 };
 
 export async function verifyExternalAuthCode(
@@ -14,14 +13,11 @@ export async function verifyExternalAuthCode(
   const headers = {} as AxiosHeaders;
 
   try {
-    const res = await POST(`/auths/${externalAuth}`, headers, { code });
-
-    const tokens = res.data as { access: string; refresh: string };
+    await POST(`/auths/${externalAuth}`, headers, { code });
 
     return {
       status: 200,
-      ok: true,
-      data: { rt: tokens.refresh, at: tokens.access }
+      ok: true
     };
   } catch (error) {
     const axiosError = error as AxiosError;

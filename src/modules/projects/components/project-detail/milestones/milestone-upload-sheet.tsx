@@ -253,8 +253,8 @@ export default function MilestoneUploadSheet({
                   ) : null}
                   {preview.aiRecommendations?.length ? (
                     <ul className="list-disc pl-4 text-xs text-muted-foreground">
-                      {preview.aiRecommendations.map((rec) => (
-                        <li key={rec}>{rec}</li>
+                      {preview.aiRecommendations.map((rec, index) => (
+                        <li key={`${rec}-${index}`}>{rec}</li>
                       ))}
                     </ul>
                   ) : null}

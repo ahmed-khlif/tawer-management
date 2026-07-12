@@ -13,7 +13,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table"
-import { AppWindow, ArrowUpDown, ColumnsIcon, FilterIcon, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
+import { Activity, AlertTriangle, AppWindow, ArrowUpDown, ColumnsIcon, FilterIcon, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 import { Button } from "@/components/ui/button"
@@ -63,6 +63,8 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
     pagesNumber: pages,
     setPage,
     page,
+    records,
+    isRefreshing,
     search,
     setSearch,
     servicesStatuses: selectedServicesStatuses,
@@ -176,6 +178,33 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
           return (
             <Badge variant={variant} className="capitalize">
               {t(`statuses.${status.toLowerCase()}`)}
+            </Badge>
+          )
+        },
+      },
+      {
+        accessorKey: "healthIncidentOpen",
+        header: t("table.headers.health"),
+        cell: ({ row }) => {
+          const service = row.original
+
+          if (service.status !== "Running") {
+            return (
+              <Badge variant="outline">
+                {t("table.health.offlineScope")}
+              </Badge>
+            )
+          }
+
+          return service.healthIncidentOpen ? (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="size-3" />
+              {t("table.health.incident")}
+            </Badge>
+          ) : (
+            <Badge variant="success" className="gap-1">
+              <Activity className="size-3" />
+              {t("table.health.healthy")}
             </Badge>
           )
         },
@@ -382,6 +411,11 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
         </div>
 
         <div className="ms-auto flex gap-2">
+          {isRefreshing && (
+            <Badge variant="outline" className="hidden sm:inline-flex">
+              {t("refreshing")}
+            </Badge>
+          )}
           {user &&
             hasPermissions(user.roles, "servicesManagement", "delete") &&
             table.getSelectedRowModel().rows.length > 0 && (
@@ -465,7 +499,7 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
           {paginationContent.rich("selected", {
             page: page,
             pages: pages,
-            records: services?.length || 0,
+            records: records,
           })}
         </div>
         <div className="space-x-2">
@@ -502,7 +536,7 @@ export default function ServicesList({ limit = 20 }: ServicesListProps) {
       )}
 
       {/* Server Edit Dialog */}
-      {serviceToUpload && user && hasPermissions(user.roles, "serversManagement", "edit") && (
+      {serviceToUpload && user && hasPermissions(user.roles, "servicesManagement", "edit") && (
         <UploadServiceDialog
           service={serviceToUpload}
           onClose={() => setServiceToUpload(null)}

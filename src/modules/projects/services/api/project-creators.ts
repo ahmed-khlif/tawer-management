@@ -18,7 +18,7 @@ export default async function retrieveProjectCreators(): Promise<ProjectCreator[
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveProjectCreators());
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     throw error;
   }

@@ -36,6 +36,17 @@ interface Props {
   project: ProjectType;
 }
 
+function normalizeInvitationStatus(rawStatus: string | undefined): string {
+  const normalized = (rawStatus ?? "PENDING").toUpperCase();
+
+  if (normalized === "JOINED") return "accepted";
+  if (normalized === "CANCELLED" || normalized === "REVOKED") return "cancelled";
+  if (normalized === "EXPIRED") return "expired";
+  if (normalized === "FAILED" || normalized === "ERROR") return "failed";
+
+  return normalized.toLowerCase();
+}
+
 export default function ProjectMembers({ project }: Props) {
   const t = useTranslations("modules.projects.project.details");
   const members = project.members || [];
@@ -86,7 +97,7 @@ export default function ProjectMembers({ project }: Props) {
   const totalMembers = members.length;
   const managerCount = members.filter((m) => m.isManager).length;
   const pendingInvitations = invitations.filter(
-    (i) => (i.status as string)?.toLowerCase?.() === "pending",
+    (i) => normalizeInvitationStatus(i.status) === "pending",
   ).length;
 
   // Filter logic
@@ -133,7 +144,7 @@ export default function ProjectMembers({ project }: Props) {
 
     // Status
     if (selectedInviteStatus.length > 0) {
-      if (!selectedInviteStatus.includes((invite.status as string)?.toLowerCase())) return false;
+      if (!selectedInviteStatus.includes(normalizeInvitationStatus(invite.status))) return false;
     }
 
     return true;
@@ -309,8 +320,8 @@ export default function ProjectMembers({ project }: Props) {
                 options: [
                   { id: "pending", label: "Pending", icon: Clock },
                   { id: "accepted", label: "Accepted", icon: CheckCircle2, iconClassName: "text-success" },
-                  { id: "declined", label: "Declined", icon: XCircle, iconClassName: "text-destructive" },
-                  { id: "revoked", label: "Revoked", icon: AlertCircle, iconClassName: "text-warning" },
+                  { id: "expired", label: "Expired", icon: XCircle, iconClassName: "text-destructive" },
+                  { id: "cancelled", label: "Cancelled", icon: AlertCircle, iconClassName: "text-warning" },
                 ],
                 selectedIds: selectedInviteStatus,
                 onToggle: (id) =>

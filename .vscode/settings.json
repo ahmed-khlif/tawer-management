@@ -28,5 +28,8 @@
   },
   "[json]": {
     "editor.defaultFormatter": "vscode.json-language-features"
-  }
+  },
+  "jest.autoRun": "off",
+  "jest.enable": false,
+  "testing.automaticallyOpenPeekView": "never"
 }

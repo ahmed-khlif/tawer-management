@@ -210,9 +210,9 @@ export default function EpicDetailSheet({
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      {epic.aiRecommendations.map((recommendation) => (
+                      {epic.aiRecommendations.map((recommendation, index) => (
                         <div
-                          key={recommendation}
+                          key={`${recommendation}-${index}`}
                           className="rounded-xl border border-border/60 bg-background/70 px-3 py-2 text-sm text-muted-foreground"
                         >
                           {recommendation}

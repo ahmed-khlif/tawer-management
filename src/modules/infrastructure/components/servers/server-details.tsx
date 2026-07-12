@@ -7,6 +7,7 @@ import { format } from "date-fns"
 import type { ServerStatusType, ServerType } from "../../types/servers"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import DOMPurify from "dompurify"
+import { Activity, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react"
 
 interface ServerDetailsProps {
   server: ServerType
@@ -57,6 +58,76 @@ export default function ServerDetails({ server }: ServerDetailsProps) {
             <div dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(server.description as string),
             }} className="text-muted-foreground text-sm" />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="font-semibold text-sm">
+            {t("serverDetails.details.monitoringInfo")}
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center gap-2">
+                {server.healthIncidentOpen ? (
+                  <AlertTriangle className="size-4 text-destructive" />
+                ) : (
+                  <Activity className="size-4 text-[color:var(--pm-tone-running-fg)]" />
+                )}
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("serverDetails.details.monitoringState")}
+                </p>
+              </div>
+              <Badge
+                variant={server.healthIncidentOpen ? "destructive" : "success"}
+                className="mt-3"
+              >
+                {server.healthIncidentOpen
+                  ? t("serverDetails.details.incidentOpen")
+                  : t("serverDetails.details.healthy")}
+              </Badge>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center gap-2">
+                <Clock3 className="size-4 text-muted-foreground" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("serverDetails.details.lastHealthCheckAt")}
+                </p>
+              </div>
+              <p className="mt-3 text-sm">
+                {server.lastHealthCheckAt
+                  ? formatDate(server.lastHealthCheckAt)
+                  : t("serverDetails.details.notAvailable")}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-[color:var(--pm-tone-success-fg)]" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("serverDetails.details.lastHealthyAt")}
+                </p>
+              </div>
+              <p className="mt-3 text-sm">
+                {server.lastHealthyAt
+                  ? formatDate(server.lastHealthyAt)
+                  : t("serverDetails.details.notAvailable")}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="size-4 text-muted-foreground" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  {t("serverDetails.details.lastAlertAt")}
+                </p>
+              </div>
+              <p className="mt-3 text-sm">
+                {server.lastHealthAlertAt
+                  ? formatDate(server.lastHealthAlertAt)
+                  : t("serverDetails.details.notAvailable")}
+              </p>
+            </div>
           </div>
         </div>
 

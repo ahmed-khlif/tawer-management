@@ -62,7 +62,7 @@ const normalizeItems = (items: unknown[]): ProjectCalendarItem[] =>
     .filter((item): item is ProjectCalendarItem => item !== null);
 
 export function castProjectCalendar(
-  response: ProjectCalendarResponse | null | undefined,
+  response: ProjectCalendarResponse | ProjectCalendarData | null | undefined,
 ): ProjectCalendarData {
   const now = new Date();
 
@@ -73,4 +73,3 @@ export function castProjectCalendar(
     items: normalizeItems(Array.isArray(response?.items) ? response!.items : []),
   };
 }
-

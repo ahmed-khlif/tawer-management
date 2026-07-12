@@ -1,4 +1,4 @@
-"use client";;
+"use client";
 import { useEffect } from "react";
 import { CalendarDays } from "lucide-react";
 import { RiDeleteBinLine } from "@remixicon/react";
@@ -44,6 +44,7 @@ import useCurrentUser from "@/modules/auth/hooks/users/use-user";
 import { hasPermissions } from "@/modules/auth/utils/users-permissions";
 import TimeInput from "@/components/time-input";
 import { retrieveAllProjects } from "@/modules/projects/services";
+import { EventLocationField } from "./event-location-field";
 
 interface EventDialogProps {
   event: CalendarEventType | null;
@@ -86,9 +87,11 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
           title: event.title,
           description: event.description || "",
           location: event.location || "",
+          latitude: event.latitude,
+          longitude: event.longitude,
           startTime: event.startDate.toISOString(),
           endTime: event.endDate?.toISOString(),
-          projectId: event.projectId || "none",
+          projectId: event.projectId || "",
           color: (event.color as any) || "sky",
           allUsers: event.toAllUsers || false,
           participantsId: event.participantsIds // Map your existing participants here if available
@@ -102,9 +105,11 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
           title: "",
           description: "",
           location: "",
+          latitude: undefined,
+          longitude: undefined,
           startTime: startTime.toISOString(),
           endTime: endTime.toISOString(),
-          projectId: "none",
+          projectId: "",
           color: "sky",
           allUsers: false,
           participantsId: []
@@ -179,19 +184,7 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("dialog.fields.location")}</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <EventLocationField form={form} />
               </div>
             </div>
 
@@ -237,7 +230,7 @@ export function EventDialog({ event, isOpen, onClose, onDelete }: EventDialogPro
                       <FormItem>
                         <FormLabel>Project context</FormLabel>
                         <Select
-                          value={field.value || "none"}
+                          value={field.value && field.value !== "none" ? field.value : "none"}
                           onValueChange={(value) =>
                             field.onChange(value === "none" ? "" : value)
                           }

@@ -121,6 +121,7 @@ export default function ProjectGanttChart({
     () => ({
       sprints: data.sprints.length,
       epics: data.epics.length,
+      milestones: data.milestones.length,
       tasks: data.tasks.length,
     }),
     [data],

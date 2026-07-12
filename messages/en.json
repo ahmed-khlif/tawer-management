@@ -1033,6 +1033,28 @@
             "participants": "Participants",
             "participantsDescription": "Specific users who will see this event."
           },
+          "locationHelper": {
+            "action": "Use current location",
+            "placeholder": "Search for a place or use your current location",
+            "description": "Uses your browser location permission to fill this field automatically. You can still edit it manually.",
+            "mapTitle": "Map preview",
+            "mapDescription": "Drag the pin or click the map to fine-tune the exact meeting or event location.",
+            "openInMap": "Open in OpenStreetMap",
+            "success": "Current location added.",
+            "states": {
+              "searching": "Searching places...",
+              "noResults": "No places matched this search yet.",
+              "syncingPin": "Updating the address from the map pin..."
+            },
+            "errors": {
+              "unsupported": "This browser does not support location access.",
+              "permissionDenied": "Location permission was denied. Please allow access and try again.",
+              "unavailable": "Your current location is unavailable right now.",
+              "timeout": "Location lookup took too long. Please try again.",
+              "lookupFailed": "We found your coordinates, but could not resolve a readable address.",
+              "unknown": "We could not get your current location. Please try again."
+            }
+          },
           "placeholders": {
             "selectDate": "Pick a date",
             "selectTime": "Select time",
@@ -2074,6 +2096,14 @@
             "name": "Server Name",
             "status": "Status",
             "description": "Description",
+            "monitoringInfo": "Monitoring Health",
+            "monitoringState": "Current Monitoring State",
+            "incidentOpen": "Incident Open",
+            "healthy": "Healthy",
+            "lastHealthCheckAt": "Last Health Check",
+            "lastHealthyAt": "Last Healthy Response",
+            "lastAlertAt": "Last Alert Sent",
+            "notAvailable": "Not available yet",
             "networkInfo": "Network Information",
             "domain": "Domain",
             "ip": "IP Address",
@@ -2108,6 +2138,19 @@
         "search": {
           "placeholder": "Search servers..."
         },
+        "refreshing": "Refreshing live state",
+        "overview": {
+          "totalLabel": "server estate",
+          "runningLabel": "running servers",
+          "incidentsLabel": "open incidents",
+          "expiringLabel": "expiring soon",
+          "unpaidLabel": "billing follow-up",
+          "totalHint": "Tracked infrastructure nodes in your visible scope.",
+          "runningHint": "Healthy runtime capacity across the current infrastructure scope.",
+          "incidentsHint": "Machines currently flagged by the monitoring loop.",
+          "expiringHint": "Records with expiration dates inside the next 14 days.",
+          "unpaidHint": "Infrastructure items still missing billing confirmation."
+        },
         "statuses": {
           "running": "Running",
           "stopped": "Stopped",
@@ -2123,10 +2166,16 @@
             "ram": "RAM",
             "storage": "Storage",
             "status": "Status",
+            "health": "Health",
             "paid": "Payment"
           },
           "paid": "Paid",
           "unpaid": "Unpaid",
+          "health": {
+            "healthy": "Healthy",
+            "incident": "Incident",
+            "offlineScope": "Not monitored"
+          },
           "noResults": "No servers found.",
           "actionsMenu": {
             "label": "Actions",
@@ -2203,6 +2252,19 @@
       },
       "services": {
         "title": "Services",
+        "refreshing": "Refreshing live state",
+        "overview": {
+          "totalLabel": "service estate",
+          "runningLabel": "running services",
+          "incidentsLabel": "open incidents",
+          "expiringLabel": "expiring soon",
+          "unpaidLabel": "billing follow-up",
+          "totalHint": "Published or internal services in the current visibility scope.",
+          "runningHint": "Services that should currently answer runtime checks.",
+          "incidentsHint": "Endpoints currently flagged by the monitoring loop.",
+          "expiringHint": "Services with upcoming renewals inside the next 14 days.",
+          "unpaidHint": "Services still pending payment or renewal confirmation."
+        },
         "upload": {
           "success": "Service saved successfully",
           "createService": {
@@ -2275,10 +2337,16 @@
             "name": "Service Name",
             "domain": "Domain",
             "status": "Status",
+            "health": "Health",
             "paid": "Payment Status"
           },
           "paid": "Paid",
           "unpaid": "Unpaid",
+          "health": {
+            "healthy": "Healthy",
+            "incident": "Incident",
+            "offlineScope": "Not monitored"
+          },
           "noResults": "No services found.",
           "actionsMenu": {
             "label": "Actions",
@@ -2296,6 +2364,7 @@
           },
           "sections": {
             "basicInfo": "Basic Information",
+            "monitoring": "Monitoring Health",
             "sslAndBackup": "SSL & Backup",
             "billing": "Status & Billing",
             "timestamps": "Timestamps",
@@ -2310,10 +2379,14 @@
             "domain": "Domain",
             "description": "Description",
             "status": "Status",
+            "monitoringState": "Current Monitoring State",
             "sslCertificate": "SSL Certificate",
             "sslCertificateByCloudProvider": "SSL by Cloud Provider",
             "hasBackup": "Backup Enabled",
             "backupDestination": "Backup Destination",
+            "lastHealthCheckAt": "Last Health Check",
+            "lastHealthyAt": "Last Healthy Response",
+            "lastAlertAt": "Last Alert Sent",
             "paidAt": "Paid At",
             "expiredAt": "Expires At",
             "createdAt": "Created At",
@@ -2322,11 +2395,14 @@
           "details": {
             "paid": "Payment Status",
             "paidStatus": "Paid",
-            "unpaidStatus": "Unpaid"
+            "unpaidStatus": "Unpaid",
+            "incidentOpen": "Incident Open",
+            "healthy": "Healthy"
           },
           "common": {
             "yes": "Yes",
-            "no": "No"
+            "no": "No",
+            "notAvailable": "Not available yet"
           }
         },
         "deletion": {

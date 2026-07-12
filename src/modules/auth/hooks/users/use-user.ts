@@ -1,34 +1,40 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { getUseMockAuth } from "@/lib/mock-toggle";
 import { retrieveUserDetails } from "../../services/users/user-details-extraction";
 import useUserStore from "../../store/user-store";
 
 export default function useCurrentUser() {
   const pathname = usePathname();
+  const setUser = useUserStore((store) => store.setUser);
+  const setUserIsLoading = useUserStore((store) => store.setIsLoading);
+  const accessToken = useUserStore((store) => store.accessToken);
+  const sessionReady = useUserStore((store) => store.sessionReady);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["user-data", pathname],
     queryFn: () => retrieveUserDetails(),
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    refetchOnReconnect: false,
+    enabled: sessionReady && (!!accessToken || !!getUseMockAuth())
   });
-  const { setUser, setIsLoading: setUserIsLoading, user } = useUserStore((store) => store);
 
   useEffect(() => {
     if (data) {
       setUser(data);
+    } else if (sessionReady && !accessToken && !getUseMockAuth()) {
+      setUser(null);
     }
-    // Only clear user data when component unmounts, not on every data change
-  }, [data, setUser]);
+  }, [accessToken, data, sessionReady, setUser]);
 
   useEffect(() => {
-    setUserIsLoading(isLoading);
-  }, [isLoading, setUserIsLoading]);
+    setUserIsLoading(sessionReady ? isLoading : true);
+  }, [isLoading, sessionReady, setUserIsLoading]);
 
   return {
     user: data ? data : null,
-    isLoading: data === undefined || isLoading,
+    isLoading: !sessionReady || (data === undefined && !!accessToken) || isLoading,
     isError: isError || data === null
   };
 }

@@ -85,7 +85,7 @@ export async function retrieveProjectTasksPaginated(
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveProjectTasksPaginated(params));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     throw error;
   }
@@ -126,7 +126,7 @@ export async function retrieveProjectTaskById(
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveProjectTaskById(projectId, taskId));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     if (error?.response?.status === 404) return null;
     throw error;

@@ -81,7 +81,7 @@ function sanitizeTaskPayload(input: ProjectTaskPayload): ProjectTaskPayload {
   return out as ProjectTaskPayload;
 }
 
-export default async function uploadProjectTask({ task, id, projectId, attachments, deletedAttachments }: Params) {
+export default async function uploadProjectTask({ task, id, projectId, attachments, deletedAttachments }: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = { Authorization: `Bearer ${access}` };
 
@@ -102,7 +102,11 @@ export default async function uploadProjectTask({ task, id, projectId, attachmen
       return res.data;
     } catch (error: any) {
       if (error?.response?.status === 401) {
-        return await refreshToken(() => uploadProjectTask({ task, id, projectId, attachments, deletedAttachments }));
+        const retried = await refreshToken(() =>
+          uploadProjectTask({ task, id, projectId, attachments, deletedAttachments }),
+        );
+        if (retried == null) throw error;
+        return retried;
       }
       throw error;
     }
@@ -115,7 +119,9 @@ export default async function uploadProjectTask({ task, id, projectId, attachmen
     return res.data;
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() => uploadProjectTask({ task, id, projectId }));
+      const retried = await refreshToken(() => uploadProjectTask({ task, id, projectId }));
+      if (retried == null) throw error;
+      return retried;
     }
     throw error;
   }

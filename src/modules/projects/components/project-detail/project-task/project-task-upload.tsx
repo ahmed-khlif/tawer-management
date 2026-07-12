@@ -44,6 +44,7 @@ import { previewTaskAi } from "@/modules/projects/services/api/project-ai-previe
 import { PmAiAssistPanel, PmAiSuggestionCard } from "@/modules/projects/components/shared/pm-ai-assist";
 import PmAiDescriptionAssist from "@/modules/projects/components/shared/pm-ai-description-assist";
 import type { TaskAiPreviewResult } from "@/modules/projects/types/project-ai-preview";
+import { resolveAssetUrl } from "@/lib/resolve-asset-url";
 
 interface Props {
   projectId: string;
@@ -612,8 +613,8 @@ export default function ProjectTaskUploadSheet({
               inputName="attachments"
               previews={(task?.attachments || []).map((attachment) =>
                 typeof attachment === "string"
-                  ? attachment
-                  : attachment.url || attachment.attachment || "",
+                  ? resolveAssetUrl(attachment)
+                  : resolveAssetUrl(attachment.url || attachment.attachment || ""),
               ).filter(Boolean)}
               resetTrigger={resetFilesTrigger}
             />

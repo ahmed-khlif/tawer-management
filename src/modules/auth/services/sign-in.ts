@@ -2,6 +2,7 @@ import { POST } from "@/lib/http-methods";
 import { AxiosError, AxiosHeaders, AxiosResponse } from "axios";
 import { UserSignInType } from "../types";
 import { CustomError } from "@/utils/custom-error";
+import useUserStore from "../store/user-store";
 
 type AuthResponse = {
   status: number;
@@ -14,10 +15,10 @@ export async function signIn(data: UserSignInType): Promise<AuthResponse> {
 
   try {
     const res: AxiosResponse = await POST(`/auths/login`, headers, data);
-    const tokens = res.data as { access: string; refresh: string };
+    const session = res.data as { access: string };
 
-    localStorage.setItem("access", tokens.access);
-    localStorage.setItem("refresh", tokens.refresh);
+    useUserStore.getState().setAccessToken(session.access);
+    useUserStore.getState().setSessionReady(true);
 
     return { status: 204, ok: true };
   } catch (error) {

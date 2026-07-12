@@ -110,9 +110,9 @@ export function ProjectAiInsightsCard({
           </h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
             {insights.recommendations.length > 0 ? (
-              insights.recommendations.map((recommendation) => (
+              insights.recommendations.map((recommendation, index) => (
                 <li
-                  key={recommendation}
+                  key={`${recommendation}-${index}`}
                   className="rounded-xl border border-border/60 bg-muted/30 px-3 py-3"
                 >
                   <div className="flex items-start gap-3">

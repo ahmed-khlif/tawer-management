@@ -22,7 +22,11 @@ export async function addProjectMember(
     const res = await POST(API.PROJECTS.MEMBERS(projectId), headers, data);
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => addProjectMember(projectId, data));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => addProjectMember(projectId, data));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }
@@ -39,7 +43,11 @@ export async function updateProjectMemberRole(
     const res = await PATCH(API.PROJECTS.MEMBER(projectId, memberId), headers, data);
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => updateProjectMemberRole(projectId, memberId, data));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => updateProjectMemberRole(projectId, memberId, data));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }
@@ -51,7 +59,11 @@ export async function removeProjectMember(projectId: string, memberId: string): 
   try {
     await DELETE(API.PROJECTS.MEMBER(projectId, memberId), headers);
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => removeProjectMember(projectId, memberId));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => removeProjectMember(projectId, memberId));
+      if (retried == null) throw error;
+      return;
+    }
     throw error;
   }
 }
@@ -67,7 +79,11 @@ export async function createProjectInvitation(
     const res = await POST(API.PROJECTS.INVITATIONS(projectId), headers, data);
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => createProjectInvitation(projectId, data));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => createProjectInvitation(projectId, data));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }
@@ -79,7 +95,11 @@ export async function deleteProjectInvitation(projectId: string, invitationId: s
   try {
     await DELETE(API.PROJECTS.INVITATION(projectId, invitationId), headers);
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => deleteProjectInvitation(projectId, invitationId));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => deleteProjectInvitation(projectId, invitationId));
+      if (retried == null) throw error;
+      return;
+    }
     throw error;
   }
 }
@@ -99,7 +119,11 @@ export async function resendProjectInvitation(
     );
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => resendProjectInvitation(projectId, invitationId));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => resendProjectInvitation(projectId, invitationId));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }
@@ -114,7 +138,11 @@ export async function acceptProjectInvitation(
     const res = await POST(API.PROJECTS.ACCEPT_INVITATION(), headers, { token });
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => acceptProjectInvitation(token));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => acceptProjectInvitation(token));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }

@@ -20,7 +20,7 @@ export default async function saveEstimationsToBackend({ csv }: Params): Promise
 
     if (axiosError.response?.status === 401) {
       const res = await refreshToken(() => saveEstimationsToBackend({ csv }))
-      if (!res) throw new CustomError("Unauthorized", 401)
+      if (res == null) throw new CustomError("Unauthorized", 401)
       return
     }
 

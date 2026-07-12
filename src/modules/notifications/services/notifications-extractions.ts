@@ -13,7 +13,7 @@ interface Params {
   status?: "seen" | "unseen";
 }
 
-export default async function retreiveNotifications(params: Params) {
+export default async function retreiveNotifications(params: Params): Promise<any> {
   if (USE_MOCK()) return null; // REMOVE THIS LINE FOR PROD
 
   const { access } = extractJWTokens();
@@ -42,7 +42,7 @@ export default async function retreiveNotifications(params: Params) {
       const res = await refreshToken(() => retreiveNotifications(params));
 
       //unauthorized user error is already handled by the user hook
-      if (!res) return null;
+      if (res == null) return null;
 
       return res;
     }

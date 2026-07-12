@@ -83,7 +83,8 @@ export default function EmployeeAnalyticsPageRender({ userId }: Props) {
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
               This employee analytics view is only available for your own profile,
-              executive access, or teammates who share a project context with you.
+              executive access, managed teammates, or teammates who share a
+              project context with you.
             </p>
             <p>
               Open this page from a shared project when applicable, or return to a

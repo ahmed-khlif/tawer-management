@@ -17,7 +17,7 @@ interface Params {
   search?: string;
 }
 
-export default async function retrieveTasks(params: Params) {
+export default async function retrieveTasks(params: Params): Promise<any> {
   if (USE_MOCK()) return (mockTasks as TaskInResponseType[]).map(castToTaskType);
 
   const { access } = extractJWTokens();
@@ -44,7 +44,7 @@ export default async function retrieveTasks(params: Params) {
     if (axiosError.response?.status === 401) {
       const res = await refreshToken(() => retrieveTasks(params));
 
-      if (!res) return null;
+      if (res == null) return null;
 
       return res;
     }

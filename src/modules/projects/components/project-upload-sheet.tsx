@@ -206,7 +206,7 @@ export default function ProjectUploadSheet({ isOpen, onClose, project, templateP
                   <FormLabel>{t("upload.form.labels.details", { defaultValue: "Details" })}</FormLabel>
                   <FormControl>
                     <TextEditor
-                      initialContent={project?.contents?.[0]?.details || ""}
+                      initialContent={field.value || ""}
                       placeholder={t("upload.form.placeholders.details", { defaultValue: "Add detailed project information..." })}
                       {...field}
                     />

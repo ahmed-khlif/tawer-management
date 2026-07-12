@@ -30,7 +30,7 @@ pipeline {
         script {
           buildApp([
             project: "tawer-management",
-            envType: "prod",,
+            envType: "prod",
             pathInRegistry: "prod/tawer-management/website",
           ])
         }

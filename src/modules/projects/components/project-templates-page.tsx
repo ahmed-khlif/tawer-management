@@ -6,10 +6,12 @@ import {
   ArrowRight,
   Briefcase,
   CalendarRange,
+  CheckCircle2,
   Code2,
   Cog,
   FolderKanban,
   Handshake,
+  Layers3,
   Palette,
   Plus,
   Rocket,
@@ -91,27 +93,6 @@ const TEMPLATE_ART_BY_ID: Record<string, React.ReactNode> = {
   ),
 };
 
-function getTemplateIcon(templateId: string) {
-  switch (templateId) {
-    case "agile-development":
-      return Code2;
-    case "content-calendar":
-      return CalendarRange;
-    case "product-launch":
-      return Rocket;
-    case "recruitment-pipeline":
-      return Users;
-    case "design-requests":
-      return Palette;
-    case "simple-crm":
-      return Handshake;
-    case "operations-rollout":
-      return Cog;
-    default:
-      return FolderKanban;
-  }
-}
-
 export default function ProjectTemplatesPage() {
   const { user } = useCurrentUser();
   const [search, setSearch] = React.useState("");
@@ -129,6 +110,9 @@ export default function ProjectTemplatesPage() {
         template.category,
         template.description,
         template.defaultDescription,
+        template.bestFor,
+        ...(template.roadmapHints ?? []),
+        ...(template.starterChecklist ?? []),
       ]
         .join(" ")
         .toLowerCase();
@@ -149,7 +133,7 @@ export default function ProjectTemplatesPage() {
           className="border-0 bg-transparent p-0 shadow-none"
           icon={Sparkles}
           title="Project Templates"
-          description="Kickstart your project with one of our pre-built templates or start from scratch."
+          description="Start TDG projects with presets aligned to Tawer Dev, Tawer Creative, delivery planning, and operational follow-up."
           metrics={[
             {
               icon: FolderKanban,
@@ -163,6 +147,12 @@ export default function ProjectTemplatesPage() {
               label: "categories",
               tone: "info",
             },
+            {
+              icon: Layers3,
+              value: "Dev + Creative",
+              label: "business units",
+              tone: "running",
+            },
           ]}
           actions={
             canCreateProjects ? (
@@ -172,6 +162,36 @@ export default function ProjectTemplatesPage() {
             ) : null
           }
         />
+
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm dark:bg-background/40">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Code2 className="size-4 text-blue-500" />
+              Tawer Dev
+            </div>
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              Agile delivery, websites, APIs, infrastructure readiness, QA, and release preparation.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm dark:bg-background/40">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Palette className="size-4 text-pink-500" />
+              Tawer Creative
+            </div>
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              Brand identity, design requests, content calendars, campaign planning, and asset delivery.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm dark:bg-background/40">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <Sparkles className="size-4 text-primary" />
+              AI-assisted kickoff
+            </div>
+            <p className="mt-2 text-xs leading-6 text-muted-foreground">
+              Selected templates prefill project data, then the create sheet can suggest roadmap dates, milestones, and epics.
+            </p>
+          </div>
+        </div>
 
         <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full max-w-md">
@@ -229,7 +249,7 @@ export default function ProjectTemplatesPage() {
         </Card>
 
         {filteredTemplates.map((template) => {
-          const Icon = getTemplateIcon(template.id);
+          const Icon = template.icon;
           const categoryClass =
             CATEGORY_STYLES[template.category] ??
             "border-primary/20 bg-primary/10 text-primary";
@@ -266,6 +286,15 @@ export default function ProjectTemplatesPage() {
                   {template.description}
                 </p>
 
+                <div className="mb-4 rounded-lg border border-border/70 bg-muted/20 p-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Best for
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    {template.bestFor}
+                  </p>
+                </div>
+
                 <div className="mb-4 flex flex-wrap gap-2">
                   <Badge variant="outline" className={projectTypeClass}>
                     {template.projectType}
@@ -274,6 +303,17 @@ export default function ProjectTemplatesPage() {
                     {businessUnitLabel}
                   </Badge>
                 </div>
+
+                {template.starterChecklist?.length ? (
+                  <div className="mb-5 space-y-2">
+                    {template.starterChecklist.slice(0, 3).map((item) => (
+                      <div key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                        <span className="leading-5">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
 
                 {canCreateProjects ? (
                   <Button

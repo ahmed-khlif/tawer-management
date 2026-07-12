@@ -11,7 +11,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, ColumnsIcon, FilterIcon, HardDrive, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
+import { Activity, AlertTriangle, ArrowUpDown, ColumnsIcon, FilterIcon, HardDrive, MoreHorizontal, PlusCircle, Trash2Icon } from "lucide-react"
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
@@ -47,7 +47,7 @@ export default function ServersList() {
   const paginationContent = useTranslations("shared.pagination")
 
   const limit = 20
-  const { servers, serversAreLoading, pagesNumber: pages, setPage, page, search, setSearch, serverStatuses, setServerStatuses } = useServers({ limit })
+  const { servers, serversAreLoading, pagesNumber: pages, setPage, page, records, isRefreshing, search, setSearch, serverStatuses, setServerStatuses } = useServers({ limit })
   const { user } = useCurrentUser();
 
   const {
@@ -149,6 +149,33 @@ export default function ServersList() {
       },
     },
     {
+      accessorKey: "healthIncidentOpen",
+      header: t("table.headers.health"),
+      cell: ({ row }: any) => {
+        const server = row.original as ServerType
+
+        if (server.status !== "Running") {
+          return (
+            <Badge variant="outline">
+              {t("table.health.offlineScope")}
+            </Badge>
+          )
+        }
+
+        return server.healthIncidentOpen ? (
+          <Badge variant="destructive" className="gap-1">
+            <AlertTriangle className="size-3" />
+            {t("table.health.incident")}
+          </Badge>
+        ) : (
+          <Badge variant="success" className="gap-1">
+            <Activity className="size-3" />
+            {t("table.health.healthy")}
+          </Badge>
+        )
+      },
+    },
+    {
       accessorKey: "paid",
       header: t("table.headers.paid"),
       cell: ({ row }: any) => {
@@ -216,7 +243,7 @@ export default function ServersList() {
       columnVisibility,
       rowSelection,
       pagination: {
-        pageIndex: pages - 1,
+        pageIndex: Math.max(page - 1, 0),
         pageSize: limit,
       },
     },
@@ -310,6 +337,11 @@ export default function ServersList() {
           </div>
 
           <div className="ms-auto flex gap-2">
+            {isRefreshing && (
+              <Badge variant="outline" className="hidden sm:inline-flex">
+                {t("refreshing")}
+              </Badge>
+            )}
             {user &&
               hasPermissions(user.roles, "serversManagement", "delete") &&
               table.getSelectedRowModel().rows.length > 0 && (
@@ -393,7 +425,7 @@ export default function ServersList() {
             {paginationContent.rich("selected", {
               page: page,
               pages: pages,
-              records: limit,
+              records: records,
             })}
           </div>
           <div className="space-x-2">

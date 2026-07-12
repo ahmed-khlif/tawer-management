@@ -272,8 +272,8 @@ export default function SprintUploadSheet({ projectId, projectStartDate, project
                       </p>
                       {preview.aiCapacitySignal.recommendations?.length ? (
                         <ul className="mt-2 list-disc pl-4 text-xs text-muted-foreground">
-                          {preview.aiCapacitySignal.recommendations.map((rec) => (
-                            <li key={rec}>{rec}</li>
+                          {preview.aiCapacitySignal.recommendations.map((rec, index) => (
+                            <li key={`${rec}-${index}`}>{rec}</li>
                           ))}
                         </ul>
                       ) : null}

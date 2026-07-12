@@ -12,7 +12,7 @@ interface Params {
  * @param params ids is the notifications ids that will be marked as seen
  * @returns null if an error occured otherwise it returns true
  */
-export default async function markNotificationAsSeenOnServerSide(params: Params) {
+export default async function markNotificationAsSeenOnServerSide(params: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -31,7 +31,7 @@ export default async function markNotificationAsSeenOnServerSide(params: Params)
       const res = await refreshToken(() => markNotificationAsSeenOnServerSide(params));
 
       //unauthorized user error is already handled by the user hook
-      if (!res) return null;
+      if (res == null) return null;
 
       return res;
     }

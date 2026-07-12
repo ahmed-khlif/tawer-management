@@ -10,7 +10,9 @@ export async function deleteProjectTask(projectId: string, taskId: string): Prom
     await DELETE(`/projects/${projectId}/tasks/${taskId}`, headers);
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() => deleteProjectTask(projectId, taskId));
+      const retried = await refreshToken(() => deleteProjectTask(projectId, taskId));
+      if (retried == null) throw error;
+      return;
     }
     throw error;
   }

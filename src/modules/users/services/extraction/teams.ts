@@ -12,7 +12,7 @@ interface Params {
   search?: string;
 }
 
-export default async function retreiveTeamsFromServerSide(params: Params) {
+export default async function retreiveTeamsFromServerSide(params: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -37,7 +37,7 @@ export default async function retreiveTeamsFromServerSide(params: Params) {
       const res = await refreshToken(() => retreiveTeamsFromServerSide(params));
 
       //unauthorized team error is already handled by the team hook
-      if (!res) return null;
+      if (res == null) return null;
 
       return res;
     }

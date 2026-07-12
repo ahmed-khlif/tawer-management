@@ -9,6 +9,16 @@ import {
 } from "../../types";
 import { EventFormSchema } from "../../validations/event.schema";
 
+function normalizeProjectId(projectId?: string | null) {
+  const normalizedProjectId = projectId?.trim();
+
+  if (!normalizedProjectId || normalizedProjectId === "none") {
+    return null;
+  }
+
+  return normalizedProjectId;
+}
+
 export function castToCalendarEventRequestType(
   event: EventFormSchema,
   type: EventType
@@ -22,11 +32,13 @@ export function castToCalendarEventRequestType(
 
   if (event.allUsers !== undefined) uploadedEvent.toAllUsers = event.allUsers;
   if (event.participantsId !== undefined) uploadedEvent.participantsIds = event.participantsId;
-  if (event.projectId) uploadedEvent.projectId = event.projectId;
+  if ("projectId" in event) uploadedEvent.projectId = normalizeProjectId(event.projectId);
 
   if (event.description !== undefined) uploadedEvent.content[0].description = event.description;
   if (event.color) uploadedEvent.color = castToEventColorRequestType(event.color);
   if (event.location !== undefined) uploadedEvent.location = event.location;
+  if (event.latitude !== undefined) uploadedEvent.latitude = event.latitude;
+  if (event.longitude !== undefined) uploadedEvent.longitude = event.longitude;
 
   return uploadedEvent;
 }
@@ -45,10 +57,12 @@ export function castToFromCalendarEventTypeToCalendarEventRequestType(
   if (event.description) uploadedEvent.content[0].description = event.description;
   if (event.color) uploadedEvent.color = castToEventColorRequestType(event.color);
   if (event.location) uploadedEvent.location = event.location;
+  if (event.latitude !== undefined) uploadedEvent.latitude = event.latitude;
+  if (event.longitude !== undefined) uploadedEvent.longitude = event.longitude;
 
   if (event.toAllUsers) uploadedEvent.toAllUsers = event.toAllUsers;
   if (event.participantsIds) uploadedEvent.participantsIds = event.participantsIds;
-  if (event.projectId) uploadedEvent.projectId = event.projectId;
+  if ("projectId" in event) uploadedEvent.projectId = normalizeProjectId(event.projectId);
 
   return uploadedEvent;
 }

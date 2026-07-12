@@ -20,10 +20,9 @@ export default async function externalAuthMiddlware(
   request.nextUrl.searchParams.delete("prompt");
   request.nextUrl.searchParams.delete("authuser");
 
-  if (res.ok && res.data) {
-    request.cookies.set("x-At", res.data.at);
-    request.cookies.set("x-Rt", res.data.rt);
-
+  if (res.ok) {
+    request.nextUrl.pathname = "/login";
+    request.nextUrl.searchParams.set("auth", "completed");
     return true;
   } else {
     request.nextUrl.searchParams.set("auth", "failed");

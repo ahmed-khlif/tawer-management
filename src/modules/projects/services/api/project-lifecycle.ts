@@ -11,7 +11,11 @@ export async function archiveProject(projectId: string): Promise<ProjectInRespon
     const res = await POST(`/projects/${projectId}/archive`, headers, {});
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => archiveProject(projectId));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => archiveProject(projectId));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }
@@ -24,7 +28,11 @@ export async function restoreProject(projectId: string): Promise<ProjectInRespon
     const res = await POST(`/projects/${projectId}/restore`, headers, {});
     return res.data;
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => restoreProject(projectId));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => restoreProject(projectId));
+      if (retried == null) throw error;
+      return retried;
+    }
     throw error;
   }
 }
@@ -36,7 +44,11 @@ export async function deleteProject(projectId: string): Promise<void> {
   try {
     await DELETE(`/projects/${projectId}`, headers);
   } catch (error: any) {
-    if (error?.response?.status === 401) return await refreshToken(() => deleteProject(projectId));
+    if (error?.response?.status === 401) {
+      const retried = await refreshToken(() => deleteProject(projectId));
+      if (retried == null) throw error;
+      return;
+    }
     throw error;
   }
 }

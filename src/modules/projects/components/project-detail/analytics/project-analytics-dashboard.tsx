@@ -795,9 +795,9 @@ export function ProjectAnalyticsDashboard({
             </CardHeader>
             <CardContent className="space-y-3">
               {topActions.length ? (
-                topActions.map((action) => (
+                topActions.map((action, index) => (
                   <div
-                    key={action.code}
+                    key={`${action.code}-${action.targetType ?? "none"}-${action.targetId ?? action.ownerUserId ?? index}`}
                     className="rounded-2xl border border-border/60 bg-background/80 p-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">

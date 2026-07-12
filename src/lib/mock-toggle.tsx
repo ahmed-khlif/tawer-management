@@ -9,6 +9,7 @@ import { persist } from "zustand/middleware";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import useUserStore from "@/modules/auth/store/user-store";
 
 // ─── Runtime store ────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export function getUseMockAuth(): boolean {
 export default function MockToggle() {
   const { isMock, isMockAuth, toggleData, toggleAuth } = useMockStore();
   const queryClient = useQueryClient();
+  const clearSession = useUserStore((store) => store.clearSession);
 
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -92,14 +94,12 @@ export default function MockToggle() {
     if (isMockAuth) {
       toggleAuth();
       queryClient.clear();
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
+      clearSession();
       window.location.href = "/login";
     } else {
       toggleAuth();
       queryClient.clear();
-      localStorage.removeItem("access");
-      localStorage.removeItem("refresh");
+      clearSession();
       window.location.href = "/dashboard";
     }
   };

@@ -14,6 +14,10 @@ import {
 import { useFileUpload } from "@/hooks/use-file-upload";
 import CustomDialog from "@/components/custom-dialog";
 import FilePreview from "reactjs-file-preview";
+import {
+  extractAssetPath,
+  resolveAssetUrl,
+} from "@/lib/resolve-asset-url";
 import { AttachmentEmpty } from "../../shared/attachment-empty";
 import {
   AttachmentRow,
@@ -90,7 +94,7 @@ export default function AttachmentsUpload({
       attachments.filter((a) => a !== attachment),
     );
 
-    const attachmentPathname = new URL(attachment).pathname;
+    const attachmentPathname = extractAssetPath(attachment);
     const concatenatedDeletedAttachments = form.getValues(
       "deletedAttachments",
     ) as string;
@@ -106,13 +110,13 @@ export default function AttachmentsUpload({
   };
 
   const viewAttachment = (attachment: string) => {
-    setPreviewUrl(attachment);
+    setPreviewUrl(resolveAssetUrl(attachment));
     setIsPreviewOpen(true);
   };
 
   const downloadAttachment = (url: string, name: string) => {
     const link = document.createElement("a");
-    link.href = url;
+    link.href = resolveAssetUrl(url);
     link.download = name;
     link.click();
   };
@@ -217,12 +221,13 @@ export default function AttachmentsUpload({
                     {alreadyCreatedAttachments.map((attachment, idx) => {
                       const name = fileNameFromUrl(attachment);
                       const kind = detectAttachmentKind(name);
+                      const resolvedUrl = resolveAssetUrl(attachment);
                       return (
                         <AttachmentRow
                           key={`${idx}-${attachment}`}
                           name={name}
                           kind={kind}
-                          previewUrl={kind === "image" ? attachment : undefined}
+                          previewUrl={kind === "image" ? resolvedUrl : undefined}
                           onView={() => viewAttachment(attachment)}
                           onDownload={() => downloadAttachment(attachment, name)}
                           onRemove={() =>

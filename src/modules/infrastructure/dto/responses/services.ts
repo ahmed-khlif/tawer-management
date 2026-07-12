@@ -19,6 +19,16 @@ export function castToServiceType(serviceInResponse: ServiceInResponseType): Ser
     backupDestination: serviceInResponse.backupDestination ? serviceInResponse.backupDestination : undefined,
     paid: serviceInResponse.paid,
     status: serviceInResponse.status,
+    healthIncidentOpen: serviceInResponse.healthIncidentOpen,
+    lastHealthAlertAt: serviceInResponse.lastHealthAlertAt
+      ? formatDateToFrontendFormat(new Date(serviceInResponse.lastHealthAlertAt))
+      : undefined,
+    lastHealthCheckAt: serviceInResponse.lastHealthCheckAt
+      ? formatDateToFrontendFormat(new Date(serviceInResponse.lastHealthCheckAt))
+      : undefined,
+    lastHealthyAt: serviceInResponse.lastHealthyAt
+      ? formatDateToFrontendFormat(new Date(serviceInResponse.lastHealthyAt))
+      : undefined,
     paidAt: serviceInResponse.paidAt ? formatDateToFrontendFormat(new Date(serviceInResponse.paidAt)) : undefined,
     expiredAt: serviceInResponse.expiredAt ? formatDateToFrontendFormat(new Date(serviceInResponse.expiredAt)) : undefined,
     createdAt: serviceInResponse.createdAt,

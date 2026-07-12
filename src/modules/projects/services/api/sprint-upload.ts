@@ -24,7 +24,9 @@ export async function uploadSprint(
     return res?.data as CreatedSprintAiResponse | undefined;
   } catch (error: any) {
     if (error?.response?.status === 401) {
-      return await refreshToken(() => uploadSprint(projectId, data, id));
+      const retried = await refreshToken(() => uploadSprint(projectId, data, id));
+      if (retried == null) throw error;
+      return retried;
     }
     throw error;
   }

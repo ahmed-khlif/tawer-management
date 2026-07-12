@@ -15,7 +15,7 @@ export default async function retrieveProjectById(id: string): Promise<ProjectTy
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveProjectById(id));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     if (error?.response?.status === 404) return null;
     throw error;

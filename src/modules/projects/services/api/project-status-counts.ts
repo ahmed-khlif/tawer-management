@@ -46,7 +46,7 @@ export default async function fetchProjectStatusCounts(
     const ax = error as { response?: { status?: number } };
     if (ax?.response?.status === 401) {
       const retried = await refreshToken(() => fetchProjectStatusCounts(params));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     throw error;
   }

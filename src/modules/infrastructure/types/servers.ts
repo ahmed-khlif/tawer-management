@@ -24,6 +24,10 @@ export interface ServerType {
   backupCloudProvider: boolean
   paid: boolean
   status: ServerStatusType
+  healthIncidentOpen: boolean
+  lastHealthAlertAt?: string
+  lastHealthCheckAt?: string
+  lastHealthyAt?: string
   paidAt?: string
   expiredAt?: string
   managers: ManagerType[]
@@ -44,11 +48,24 @@ export interface ServerInResponseType {
   backupCloudProvider: boolean
   paid: boolean
   status: ServerStatusType
+  healthIncidentOpen: boolean
+  lastHealthAlertAt?: string
+  lastHealthCheckAt?: string
+  lastHealthyAt?: string
   paidAt?: string
   expiredAt?: string
   managers: ManagerType[]
   createdAt: string
   updatedAt: string
+}
+
+export interface ServerOverviewType {
+  total: number
+  running: number
+  incidentsOpen: number
+  expiringSoon: number
+  unpaid: number
+  lastHealthCheckAt?: string
 }
 
 export interface UploadedServerType {

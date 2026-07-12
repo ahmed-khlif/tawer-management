@@ -67,7 +67,6 @@ type StatusKey =
   | "pending"
   | "accepted"
   | "expired"
-  | "expiring"
   | "revoked"
   | "failed";
 
@@ -83,12 +82,8 @@ interface ResolvedStatus {
 
 function resolveStatus(
   rawStatus: string | undefined,
-  expiresAt: Date,
+  _expiresAt: Date,
 ): ResolvedStatus {
-  const now = Date.now();
-  const exp = expiresAt.getTime();
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const daysToExpiry = (exp - now) / msPerDay;
   const normalized = (rawStatus ?? "PENDING").toUpperCase();
 
   if (normalized === "ACCEPTED" || normalized === "JOINED") {
@@ -103,7 +98,7 @@ function resolveStatus(
   if (normalized === "REVOKED" || normalized === "CANCELLED") {
     return {
       key: "revoked",
-      label: "Revoked",
+      label: "Cancelled",
       badgeClass: "border-muted-foreground/30 bg-muted text-muted-foreground",
       indicator: null,
       Icon: ShieldX,
@@ -118,7 +113,7 @@ function resolveStatus(
       Icon: MailX,
     };
   }
-  if (normalized === "EXPIRED" || daysToExpiry <= 0) {
+  if (normalized === "EXPIRED") {
     return {
       key: "expired",
       label: "Expired",
@@ -127,21 +122,31 @@ function resolveStatus(
       Icon: TriangleAlert,
     };
   }
-  if (daysToExpiry <= 3) {
-    return {
-      key: "expiring",
-      label: "Expiring soon",
-      badgeClass: "pm-tone-warning border",
-      indicator: "warning",
-      Icon: Clock,
-    };
-  }
   return {
     key: "pending",
     label: "Pending",
     badgeClass: "pm-tone-info border",
     indicator: "warning",
     Icon: MailCheck,
+  };
+}
+
+function isBackendPending(rawStatus: string | undefined): boolean {
+  const normalized = (rawStatus ?? "PENDING").toUpperCase();
+  return normalized === "PENDING";
+}
+
+function getInvitationTiming(expiresAt: Date, rawStatus: string | undefined) {
+  const now = Date.now();
+  const exp = expiresAt.getTime();
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const daysToExpiry = (exp - now) / msPerDay;
+  const isPendingInBackend = isBackendPending(rawStatus);
+
+  return {
+    isPendingInBackend,
+    isPastDueWhilePending: isPendingInBackend && daysToExpiry <= 0,
+    isExpiringSoon: isPendingInBackend && daysToExpiry > 0 && daysToExpiry <= 3,
   };
 }
 
@@ -191,10 +196,10 @@ export function InvitationsListCard({
   const t = useTranslations("modules.projects.project.details");
   const total = invitations.length;
   const pendingCount = invitations.filter(
-    (i) => resolveStatus(i.status, new Date(i.expiresAt)).key === "pending",
+    (i) => isBackendPending(i.status),
   ).length;
   const expiringCount = invitations.filter(
-    (i) => resolveStatus(i.status, new Date(i.expiresAt)).key === "expiring",
+    (i) => getInvitationTiming(new Date(i.expiresAt), i.status).isExpiringSoon,
   ).length;
   const expiredCount = invitations.filter(
     (i) => resolveStatus(i.status, new Date(i.expiresAt)).key === "expired",
@@ -227,7 +232,7 @@ export function InvitationsListCard({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Track pending invites, resend expiring ones, and revoke access when needed.
+                  Track invitation statuses, resend pending invites, and cancel access when needed.
                 </p>
               </div>
             </div>
@@ -273,11 +278,11 @@ export function InvitationsListCard({
             </EmptyMedia>
             <EmptyTitle>
               {t("invitationsList.empty", {
-                defaultValue: "No pending invitations",
+                defaultValue: "No invitations found",
               })}
             </EmptyTitle>
             <EmptyDescription>
-              Invite teammates by email to grant them access to this project.
+              Invite teammates by email or adjust the active filters to see matching invitations.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -294,7 +299,10 @@ export function InvitationsListCard({
             const status = resolveStatus(invite.status, expiresAt);
             const expiryRelative = relativeTimeFromNow(expiresAt);
             const expiryAbsolute = dateToShort(expiresAt);
-            const isExpired = status.key === "expired";
+            const { isPastDueWhilePending, isExpiringSoon, isPendingInBackend } =
+              getInvitationTiming(expiresAt, invite.status);
+            const canResend = canManage && isPendingInBackend;
+            const canRevoke = canManage && isPendingInBackend;
             const StatusIcon = status.Icon;
 
             const actions = canManage ? (
@@ -313,7 +321,7 @@ export function InvitationsListCard({
                   </TooltipTrigger>
                   <TooltipContent>Copy email</TooltipContent>
                 </Tooltip>
-                {!isExpired && status.key !== "revoked" ? (
+                {canResend ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -353,9 +361,7 @@ export function InvitationsListCard({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
                       onClick={() => onResend(invite.id)}
-                      disabled={
-                        isPending || isExpired || status.key === "revoked"
-                      }
+                      disabled={isPending || !canResend}
                     >
                       <RefreshCw className="mr-2 size-4" />
                       {t("invitationsList.resend", {
@@ -366,6 +372,7 @@ export function InvitationsListCard({
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
                       onClick={() => onRevoke(invite.id)}
+                      disabled={isPending || !canRevoke}
                     >
                       <Trash2 className="mr-2 size-4" />
                       {t("invitationsList.cancel")}
@@ -381,9 +388,9 @@ export function InvitationsListCard({
                   key={invite.id}
                   className={cn(
                     "border-border/70 bg-card/95 shadow-sm transition-all hover:-translate-y-px hover:shadow-md",
-                    status.key === "expiring" &&
+                    isExpiringSoon &&
                       "border-amber-500/30 bg-amber-500/[0.04]",
-                    status.key === "expired" &&
+                    (status.key === "expired" || isPastDueWhilePending) &&
                       "border-destructive/20 bg-destructive/[0.03]",
                   )}
                 >
@@ -433,15 +440,17 @@ export function InvitationsListCard({
                       <span
                         className={cn(
                           "inline-flex items-center gap-1 rounded-full border px-2 py-1",
-                          isExpired
+                          isPastDueWhilePending || status.key === "expired"
                             ? "border-destructive/20 bg-destructive/5 text-destructive"
-                            : status.key === "expiring"
+                            : isExpiringSoon
                               ? "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300"
                               : "border-border/70 bg-background text-muted-foreground",
                         )}
                       >
                         <CalendarClock className="size-3" />
-                        {isExpired ? "Expired " : "Expires "}
+                        {isPastDueWhilePending || status.key === "expired"
+                          ? "Expired "
+                          : "Expires "}
                         {expiryRelative}
                       </span>
                       <span className="inline-flex items-center gap-1 text-muted-foreground/80">
@@ -461,9 +470,9 @@ export function InvitationsListCard({
               <div
                 key={invite.id}
                 className={cn(
-                  status.key === "expiring" &&
+                  isExpiringSoon &&
                     "rounded-xl border border-amber-500/30 bg-amber-500/[0.04]",
-                  status.key === "expired" &&
+                  (status.key === "expired" || isPastDueWhilePending) &&
                     "rounded-xl border border-destructive/20 bg-destructive/[0.03]",
                 )}
               >
@@ -500,15 +509,17 @@ export function InvitationsListCard({
                       <span
                         className={cn(
                           "inline-flex items-center gap-1 rounded-full border px-2 py-1",
-                          isExpired
+                          isPastDueWhilePending || status.key === "expired"
                             ? "border-destructive/20 bg-destructive/5 text-destructive"
-                            : status.key === "expiring"
+                            : isExpiringSoon
                               ? "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-300"
                               : "border-border/70 bg-background text-muted-foreground",
                         )}
                       >
                         <CalendarClock className="size-3" />
-                        {isExpired ? "Expired " : "Expires "}
+                        {isPastDueWhilePending || status.key === "expired"
+                          ? "Expired "
+                          : "Expires "}
                         {expiryRelative}
                       </span>
                       <Tooltip>

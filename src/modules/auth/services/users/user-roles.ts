@@ -9,7 +9,7 @@ import { castRoleFromBackendToFrontend } from "../../utils/user-roles";
  * This service fetches the roles in backend format (UserRoleOnBackendSide).
  * The casting to frontend format should be done at the hook level if needed.
  */
-export default async function retrieveUserRoles() {
+export default async function retrieveUserRoles(): Promise<any[]> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -23,7 +23,7 @@ export default async function retrieveUserRoles() {
     const axiosError = error as AxiosError;
     if (axiosError.response?.status === 401) {
       const res = await refreshToken(() => retrieveUserRoles());
-      if (!res) return [];
+      if (res == null) return [];
       return res;
     }
     return [];

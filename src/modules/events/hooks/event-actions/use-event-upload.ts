@@ -29,7 +29,7 @@ export default function useEventUpload({ type, onSuccess, event = null }: Params
   const [error, setError] = useState("");
 
   const schema = getEventFormSchema({ t: tValidations });
-  const form = useForm({
+  const form = useForm<EventFormSchema>({
     resolver: zodResolver(schema),
     defaultValues: {}
   });

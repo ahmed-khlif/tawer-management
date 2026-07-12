@@ -218,8 +218,8 @@ export default function SprintDetailSheet({
                       </div>
                       {aiCapacityQuery.data.recommendations.length ? (
                         <div className="space-y-2">
-                          {aiCapacityQuery.data.recommendations.map((item) => (
-                            <p key={item} className="text-sm text-muted-foreground">
+                          {aiCapacityQuery.data.recommendations.map((item, index) => (
+                            <p key={`${item}-${index}`} className="text-sm text-muted-foreground">
                               - {item}
                             </p>
                           ))}

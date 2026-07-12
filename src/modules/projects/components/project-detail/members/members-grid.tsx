@@ -198,18 +198,30 @@ function MemberCard({
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       
       <div className="absolute right-2 top-2 z-10">
-        {allowDemote || allowRemove ? (
+        {allowDemote || allowRemove || canViewEmployeeAnalytics ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity bg-background/50 backdrop-blur-sm border shadow-sm"
+                className="size-8 rounded-full bg-background/85 backdrop-blur-sm border shadow-sm transition-colors hover:bg-background"
+                aria-label="Member actions"
               >
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {canViewEmployeeAnalytics ? (
+                <>
+                  <DropdownMenuItem asChild>
+                    <Link href={`/dashboard/analytics/employees/${member.userId}`}>
+                      <Activity className="size-4 mr-2" />
+                      View Employee Analytics
+                    </Link>
+                  </DropdownMenuItem>
+                  {(allowDemote || allowRemove) ? <DropdownMenuSeparator /> : null}
+                </>
+              ) : null}
               {canManageManagers && (
                 <DropdownMenuItem
                   onClick={() =>
@@ -295,13 +307,14 @@ function MemberCard({
             key={role}
             variant="outline"
             className={cn(
-              "inline-flex items-center gap-1 text-[10px] h-5 px-2 font-bold uppercase tracking-wider",
+              "inline-flex h-5 max-w-full items-center gap-1 px-2 text-[10px] font-bold uppercase tracking-wider",
               userRoleBadgeClass(),
             )}
             style={userRoleStyle(role)}
+            title={formatUserRoleLabel(role)}
           >
             <span className={userRoleDotClass()} aria-hidden />
-            {formatUserRoleLabel(role)}
+            <span className="truncate">{formatUserRoleLabel(role)}</span>
           </Badge>
         ))}
       </div>

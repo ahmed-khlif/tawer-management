@@ -14,6 +14,8 @@ export function castToCalendarEventType(event: CalendarEventInResponseType): Cal
     description: event.description,
 
     location: event.location,
+    latitude: event.latitude,
+    longitude: event.longitude,
     color: castToEventColorType(event.color || "Sky"),
 
     startDate: new Date(event.startTime),

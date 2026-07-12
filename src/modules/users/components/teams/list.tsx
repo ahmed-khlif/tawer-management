@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -8,7 +9,7 @@ import {
   getFilteredRowModel,
   useReactTable
 } from "@tanstack/react-table";
-import { ColumnsIcon, MoreHorizontal, Trash2Icon, Users } from "lucide-react";
+import { ArrowRight, ColumnsIcon, MoreHorizontal, Trash2Icon, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -100,19 +101,51 @@ export default function TeamsList() {
         return (
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="min-w-12 font-semibold">
                 {members.length}
               </Button>
             </PopoverTrigger>
 
-            <PopoverContent className="w-64 p-3">
+            <PopoverContent className="w-80 border-border/70 bg-card/95 p-3 shadow-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">{row.original.name}</p>
+                  <p className="text-muted-foreground text-xs">
+                    Open a teammate profile directly from this team roster.
+                  </p>
+                </div>
+                <Badge variant="outline" className="rounded-full">
+                  {members.length}
+                </Badge>
+              </div>
+
               <div className="space-y-2">
                 {members.map((member) => (
-                  <div key={member.id} className="flex items-center gap-3">
-                    <UserProfileImage name={member.name} image={member.image} />
+                  <Link
+                    key={member.id}
+                    href={
+                      user?.id === member.id
+                        ? "/dashboard/users/profile/me"
+                        : `/dashboard/users/profile/${member.id}`
+                    }
+                    className="group flex items-center gap-3 rounded-xl border border-transparent bg-muted/30 px-3 py-2.5 transition-all hover:border-border/70 hover:bg-background"
+                  >
+                    <UserProfileImage name={member.name} image={member.image} size="sm" />
 
-                    <span className="text-sm font-medium">{member.name}</span>
-                  </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-semibold">{member.name}</span>
+                        {member.isManager ? (
+                          <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px]">
+                            Manager
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="text-muted-foreground truncate text-xs">{member.email}</p>
+                    </div>
+
+                    <ArrowRight className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                  </Link>
                 ))}
               </div>
             </PopoverContent>

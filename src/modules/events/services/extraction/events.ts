@@ -12,7 +12,7 @@ interface Params {
   to?: string;
 }
 
-export default async function retreiveEventsFromServerSide(params: Params) {
+export default async function retreiveEventsFromServerSide(params: Params): Promise<any> {
   const { access } = extractJWTokens();
   const headers = {
     Authorization: `Bearer ${access}`
@@ -36,7 +36,7 @@ export default async function retreiveEventsFromServerSide(params: Params) {
         const res = await refreshToken(() => retreiveEventsFromServerSide(params));
 
         //unauthorized user error is already handled by the user hook
-        if (!res) return null;
+        if (res == null) return null;
 
         return res;
       }

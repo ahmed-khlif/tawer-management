@@ -356,7 +356,7 @@ export default function ProjectTasksToolbar({
   };
 
   const displaySettingsSlot = (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 max-w-full items-center gap-2">
       {setGroupBy ? (
         <ToggleGroup
           type="single"
@@ -368,11 +368,17 @@ export default function ProjectTasksToolbar({
           }}
           variant="outline"
           size="sm"
-          className="hidden md:flex"
+          className="hidden min-w-fit max-w-full shrink-0 overflow-x-auto md:inline-flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          <ToggleGroupItem value="none">None</ToggleGroupItem>
-          <ToggleGroupItem value="assignee">Assignee</ToggleGroupItem>
-          <ToggleGroupItem value="epic">Epic</ToggleGroupItem>
+          <ToggleGroupItem value="none" className="flex-none px-3">
+            None
+          </ToggleGroupItem>
+          <ToggleGroupItem value="assignee" className="flex-none px-3">
+            Assignee
+          </ToggleGroupItem>
+          <ToggleGroupItem value="epic" className="flex-none px-3">
+            Epic
+          </ToggleGroupItem>
         </ToggleGroup>
       ) : null}
 

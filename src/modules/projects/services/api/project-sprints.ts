@@ -31,7 +31,7 @@ export default async function retrieveProjectSprints(params: Params): Promise<Sp
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveProjectSprints(params));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     throw error;
   }
@@ -56,7 +56,7 @@ export async function retrieveSprintById(
   } catch (error: any) {
     if (error?.response?.status === 401) {
       const retried = await refreshToken(() => retrieveSprintById(sprintId));
-      if (retried) return retried;
+      if (retried != null) return retried;
     }
     if (error?.response?.status === 404) return null;
     throw error;

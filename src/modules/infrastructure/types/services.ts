@@ -22,6 +22,10 @@ export interface ServiceType {
   backupDestination?: string
   paid: boolean;
   status: ServiceStatusType
+  healthIncidentOpen: boolean
+  lastHealthAlertAt?: string
+  lastHealthCheckAt?: string
+  lastHealthyAt?: string
   paidAt?: string
   expiredAt?: string
   createdAt: string
@@ -45,10 +49,23 @@ export interface ServiceInResponseType {
   backupDestination: string | null
   paid: boolean
   status: ServiceStatusType
+  healthIncidentOpen: boolean
+  lastHealthAlertAt?: string
+  lastHealthCheckAt?: string
+  lastHealthyAt?: string
   paidAt?: string
   expiredAt?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface ServiceOverviewType {
+  total: number
+  running: number
+  incidentsOpen: number
+  expiringSoon: number
+  unpaid: number
+  lastHealthCheckAt?: string
 }
 
 export interface UploadedServiceType {
